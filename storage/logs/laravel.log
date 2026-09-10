@@ -1,0 +1,4 @@
+[2026-09-09 23:18:14] local.WARNING: Data source fetch failed: cURL error 56: CONNECT tunnel failed, response 403 (see https://curl.se/libcurl/c/libcurl-errors.html) for https://www.alphavantage.co/query  
+[2026-09-09 23:18:14] local.WARNING: Data source fetch failed: cURL error 56: CONNECT tunnel failed, response 403 (see https://curl.se/libcurl/c/libcurl-errors.html) for https://www.alphavantage.co/query  
+[2026-09-09 23:18:14] local.WARNING: Data source fetch failed: cURL error 56: CONNECT tunnel failed, response 403 (see https://curl.se/libcurl/c/libcurl-errors.html) for https://www.alphavantage.co/query  
+[2026-09-09 23:18:14] local.WARNING: Data source fetch failed: cURL error 56: CONNECT tunnel failed, response 403 (see https://curl.se/libcurl/c/libcurl-errors.html) for https://www.sec.gov/files/company_tickers.json  

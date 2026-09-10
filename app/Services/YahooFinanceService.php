@@ -1,0 +1,146 @@
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Http;
+
+// Unofficial, undocumented Yahoo Finance endpoints. No API key, but no uptime/rate guarantee.
+// Used for IDX tickers (suffix .JK) since Alpha Vantage doesn't cover the Indonesian exchange.
+class YahooFinanceService
+{
+    public function normalizeIdxTicker(string $ticker): string
+    {
+        $t = strtoupper(trim($ticker));
+        return str_ends_with($t, '.JK') ? $t : "{$t}.JK";
+    }
+
+    public function getChart(string $ticker): ?array
+    {
+        $symbol = $this->normalizeIdxTicker($ticker);
+        $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
+            ->get("https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}", [
+                'range' => '3mo',
+                'interval' => '1d',
+            ])->json();
+
+        $result = $data['chart']['result'][0] ?? null;
+        if (!$result) {
+            return null;
+        }
+
+        $timestamps = $result['timestamp'] ?? [];
+        $quote = $result['indicators']['quote'][0] ?? null;
+        if (!$quote) {
+            return null;
+        }
+
+        $series = [];
+        foreach ($timestamps as $i => $ts) {
+            $close = $quote['close'][$i] ?? null;
+            if ($close === null) {
+                continue;
+            }
+            $series[] = [
+                'date' => gmdate('Y-m-d', $ts),
+                'close' => $close,
+                'volume' => $quote['volume'][$i] ?? null,
+            ];
+        }
+        usort($series, fn ($a, $b) => strcmp($b['date'], $a['date'])); // newest first
+
+        return [
+            'currency' => $result['meta']['currency'] ?? 'IDR',
+            'name' => $result['meta']['symbol'] ?? $symbol,
+            'series' => $series,
+        ];
+    }
+
+    // Best-effort fundamentals. Yahoo has been locking this endpoint behind a crumb/cookie for
+    // some accounts — if it fails, callers should treat fundamentals as unavailable and fall back
+    // to a neutral score rather than erroring out the whole analysis.
+    public function getFundamentals(string $ticker): ?array
+    {
+        $symbol = $this->normalizeIdxTicker($ticker);
+        try {
+            $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
+                ->get("https://query1.finance.yahoo.com/v10/finance/quoteSummary/{$symbol}", [
+                    'modules' => 'financialData,defaultKeyStatistics,summaryDetail',
+                ])->json();
+
+            $result = $data['quoteSummary']['result'][0] ?? null;
+            if (!$result) {
+                return null;
+            }
+
+            $fin = $result['financialData'] ?? [];
+            $stats = $result['defaultKeyStatistics'] ?? [];
+            $summary = $result['summaryDetail'] ?? [];
+
+            return [
+                'peRatio' => $this->raw($summary['trailingPE'] ?? null),
+                'pegRatio' => $this->raw($stats['pegRatio'] ?? null),
+                'profitMargin' => $this->raw($fin['profitMargins'] ?? null),
+                'revenueGrowthYoy' => $this->raw($fin['revenueGrowth'] ?? null),
+                'earningsGrowthYoy' => $this->raw($fin['earningsGrowth'] ?? null),
+                'debtToEquity' => $this->raw($fin['debtToEquity'] ?? null),
+                'returnOnEquity' => $this->raw($fin['returnOnEquity'] ?? null),
+                'marketCap' => $this->raw($stats['marketCap'] ?? ($summary['marketCap'] ?? null)),
+                'sector' => null,
+            ];
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    // Best-effort insider/owner transactions. Populated mostly for US-listed companies via the
+    // same SEC Form 4 feed — for many IDX tickers it comes back empty. When empty, callers should
+    // show "not available" rather than pretending there's no insider activity.
+    public function getInsiderTransactions(string $ticker): ?array
+    {
+        $symbol = $this->normalizeIdxTicker($ticker);
+        try {
+            $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
+                ->get("https://query1.finance.yahoo.com/v10/finance/quoteSummary/{$symbol}", [
+                    'modules' => 'insiderTransactions',
+                ])->json();
+
+            $list = $data['quoteSummary']['result'][0]['insiderTransactions']['transactions'] ?? null;
+            if (!is_array($list) || count($list) === 0) {
+                return [];
+            }
+
+            return array_map(function ($t) {
+                $text = strtolower($t['transactionText'] ?? '');
+                $type = (str_contains($text, 'purchase') || str_contains($text, 'buy'))
+                    ? 'buy'
+                    : ((str_contains($text, 'sale') || str_contains($text, 'sell')) ? 'sell' : 'other');
+
+                $shares = $this->raw($t['shares'] ?? null);
+                $value = $this->raw($t['value'] ?? null);
+
+                return [
+                    'date' => isset($t['startDate']) ? gmdate('Y-m-d', $this->raw($t['startDate'])) : null,
+                    'insiderName' => $t['filerName'] ?? 'Tidak diketahui',
+                    'role' => $t['filerRelation'] ?? 'Insider',
+                    'type' => $type,
+                    'shares' => $shares,
+                    'pricePerShare' => ($shares && $value) ? $value / $shares : null,
+                    'value' => $value,
+                ];
+            }, $list);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function raw($field)
+    {
+        if ($field === null) {
+            return null;
+        }
+        if (is_array($field) && array_key_exists('raw', $field)) {
+            return $field['raw'];
+        }
+        return is_numeric($field) ? (float) $field : null;
+    }
+}

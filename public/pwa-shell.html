@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Skor Saham</title>
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Skor Saham</h1>
+    <span id="net-status" class="badge">memeriksa...</span>
+  </header>
+
+  <main>
+    <form id="analyze-form" class="search-box">
+      <select id="market" name="market">
+        <option value="idx">IDX (Indonesia)</option>
+        <option value="global">Global (US, dll)</option>
+      </select>
+      <input id="ticker" name="ticker" type="text" placeholder="Contoh: BBCA atau AAPL" autocomplete="off" required />
+      <button type="submit">Analisis</button>
+    </form>
+
+    <p class="hint">
+      Alat bantu analisis dari berita, laporan keuangan, dan tren volume &mdash;
+      <strong>bukan jaminan prediksi harga.</strong>
+    </p>
+
+    <div id="status-area"></div>
+
+    <section id="result" class="result" hidden>
+      <h2 id="result-title"></h2>
+      <p id="result-generated" class="muted"></p>
+
+      <div class="scorecards">
+        <div class="scorecard">
+          <h3>Jangka Panjang</h3>
+          <p class="label" id="longterm-label"></p>
+          <div class="bar"><div class="fill" id="longterm-fill"></div></div>
+        </div>
+        <div class="scorecard">
+          <h3>Trading</h3>
+          <p class="label" id="trading-label"></p>
+          <div class="bar"><div class="fill" id="trading-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="breakdown">
+        <div class="factor">
+          <h4>Fundamental</h4>
+          <ul id="fund-notes"></ul>
+        </div>
+        <div class="factor">
+          <h4>Berita</h4>
+          <ul id="news-notes"></ul>
+          <ul id="news-articles" class="articles"></ul>
+        </div>
+        <div class="factor">
+          <h4>Momentum &amp; Volume</h4>
+          <ul id="momentum-notes"></ul>
+        </div>
+        <div class="factor">
+          <h4>Kepemilikan &amp; Insider</h4>
+          <ul id="ownership-notes"></ul>
+          <ul id="ownership-transactions" class="articles"></ul>
+        </div>
+      </div>
+
+      <p class="disclaimer" id="disclaimer"></p>
+    </section>
+
+    <section class="history">
+      <h2>Riwayat (tersimpan di HP)</h2>
+      <ul id="history-list"></ul>
+    </section>
+  </main>
+
+  <script src="/js/db.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
