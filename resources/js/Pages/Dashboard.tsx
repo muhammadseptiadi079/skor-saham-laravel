@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AnalysisResult, CachedAnalysis, HistoryEntry, IpoListing, Market, ScreenerResponse, WatchlistItem } from '@/types';
+import type {
+    AccuracyResponse,
+    AnalysisResult,
+    CachedAnalysis,
+    HistoryEntry,
+    IpoListing,
+    Market,
+    ScreenerResponse,
+    WatchlistItem,
+} from '@/types';
 import AppLayout from '@/Components/AppLayout';
 import StatCard from '@/Components/dashboard/StatCard';
 import SearchForm from '@/Components/dashboard/SearchForm';
@@ -8,6 +17,7 @@ import WatchlistPanel from '@/Components/dashboard/WatchlistPanel';
 import ScreenerPanel from '@/Components/dashboard/ScreenerPanel';
 import IpoPanel from '@/Components/dashboard/IpoPanel';
 import LocalHistoryPanel from '@/Components/dashboard/LocalHistoryPanel';
+import AccuracyPanel from '@/Components/dashboard/AccuracyPanel';
 import { StarIcon, ChartUpIcon, ClockIcon, BriefcaseIcon } from '@/Components/Icons';
 import * as api from '@/lib/api';
 import { StockDB } from '@/lib/db';
@@ -26,6 +36,7 @@ export default function Dashboard() {
     const [screener, setScreener] = useState<ScreenerResponse | null>(null);
     const [ipoListings, setIpoListings] = useState<IpoListing[]>([]);
     const [localHistory, setLocalHistory] = useState<CachedAnalysis[]>([]);
+    const [accuracy, setAccuracy] = useState<AccuracyResponse | null>(null);
 
     useEffect(() => {
         const goOnline = () => setOnline(true);
@@ -50,6 +61,7 @@ export default function Dashboard() {
         refreshWatchlist();
         refreshLocalHistory();
         api.fetchIpoListings().then(setIpoListings).catch(() => setIpoListings([]));
+        api.fetchAccuracy().then(setAccuracy).catch(() => setAccuracy(null));
     }, [refreshWatchlist, refreshLocalHistory]);
 
     useEffect(() => {
@@ -174,6 +186,8 @@ export default function Dashboard() {
                         trendEntries={resultTrend}
                     />
                 )}
+
+                <AccuracyPanel data={accuracy} />
 
                 <WatchlistPanel items={watchlist} onSelect={runAnalyze} onRemove={handleRemoveWatchlist} />
                 <ScreenerPanel

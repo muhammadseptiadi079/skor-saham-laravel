@@ -107,6 +107,21 @@ export interface IpoListing {
     fetched_at: string;
 }
 
+export interface AccuracyByLabel {
+    label: string;
+    sampleSize: number;
+    correct: number;
+    accuracy: number;
+    avgForwardReturnPct: number;
+}
+
+export interface AccuracyResponse {
+    sampleSize: number;
+    accuracy: number | null;
+    avgForwardReturnPct: number | null;
+    byLabel: AccuracyByLabel[];
+}
+
 export interface ApiError {
     error: string;
     message: string;

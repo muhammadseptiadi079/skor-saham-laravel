@@ -93,6 +93,11 @@ class AnalyzeControllerTest extends TestCase
 
         $this->assertDatabaseCount('analysis_history', 1);
         $this->assertDatabaseHas('analysis_history', ['ticker' => 'BBCA', 'market' => 'idx']);
+
+        // The ^JKSE benchmark fetch reuses the same faked Yahoo chart endpoint above, so the
+        // relative-momentum note should be present end-to-end, not just at the unit level.
+        $momentumNotes = implode(' ', $response->json('subScores.momentum.notes'));
+        $this->assertStringContainsString('IHSG', $momentumNotes);
     }
 
     public function test_analyze_global_returns_full_analysis(): void

@@ -19,17 +19,16 @@ class ScoringEngine
         ?array $newsArticles,
         ?array $priceSeries,
         ?array $ownershipTransactions,
-        string $currency
+        string $currency,
+        ?array $benchmarkSeries = null,
+        ?string $benchmarkLabel = null,
     ): array {
         $fundamentalResult = $this->scoreFundamentals($fundamentals);
-        $momentumResult = $this->scoreMomentum($priceSeries);
+        $momentumResult = $this->scoreMomentum($priceSeries, $benchmarkSeries, $benchmarkLabel);
         $ownershipResult = $this->scoreOwnership($ownershipTransactions, $currency);
 
         $newsArticles = $newsArticles ?? [];
-        $newsAvg = count($newsArticles) > 0
-            ? array_sum(array_map(fn ($a) => $a['sentimentScore'] ?? 0, $newsArticles)) / count($newsArticles)
-            : null;
-        $newsResult = $this->scoreNews($newsAvg, count($newsArticles));
+        $newsResult = $this->scoreNews($newsArticles);
 
         $subScores = [
             'fundamentals' => $fundamentalResult,
@@ -108,16 +107,32 @@ class ScoringEngine
             $parts[] = $s;
             $notes[] = 'Debt-to-equity '.number_format($v, 2)." ({$this->describe($s)})";
         }
+        // PEG < 1 means the stock is cheap relative to its own earnings growth (not sector-relative
+        // — no free data source gives us a reliable sector-average P/E to compare against instead).
+        if ($this->isNum($f['pegRatio'] ?? null)) {
+            $v = $f['pegRatio'];
+            $s = $v <= 0 ? -0.3 : ($v < 1 ? 1 : ($v < 2 ? 0.2 : -0.6));
+            $parts[] = $s;
+            $notes[] = 'PEG ratio '.number_format($v, 2)." ({$this->describe($s)})";
+        }
 
         if (count($parts) === 0) {
-            return ['score' => null, 'notes' => ['Tidak ada rasio fundamental yang bisa dibaca.']];
+            $notes = ! empty($f['sector']) ? ["Sektor: {$f['sector']}"] : [];
+
+            return ['score' => null, 'notes' => count($notes) > 0 ? $notes : ['Tidak ada rasio fundamental yang bisa dibaca.']];
         }
         $score = $this->clamp(array_sum($parts) / count($parts));
+
+        // Context only — not scored, since there's no reliable free source for sector-average
+        // ratios to compare against (a P/E of 20 means different things in different sectors).
+        if (! empty($f['sector'])) {
+            $notes[] = "Sektor: {$f['sector']}";
+        }
 
         return ['score' => $score, 'notes' => $notes];
     }
 
-    private function scoreMomentum(?array $series): array
+    private function scoreMomentum(?array $series, ?array $benchmarkSeries = null, ?string $benchmarkLabel = null): array
     {
         if (! $series || count($series) < 20) {
             return ['score' => null, 'notes' => ['Data harga/volume tidak cukup (butuh minimal 20 hari).']];
@@ -198,19 +213,67 @@ class ScoringEngine
                 : 'MACD di bawah garis sinyal (momentum bearish)';
         }
 
+        // Relative strength vs. a market index: outperforming the benchmark is a stronger bullish
+        // signal than raw absolute momentum (a 5% gain means little if the whole market is up 8%).
+        if ($benchmarkSeries && count($benchmarkSeries) >= 20) {
+            $benchRecent = array_slice($benchmarkSeries, 0, 20);
+            $benchNow = $benchRecent[0]['close'] ?? null;
+            $bench20dAgo = $benchRecent[19]['close'] ?? null;
+            if ($benchNow && $bench20dAgo) {
+                $benchReturn = ($benchNow - $bench20dAgo) / $bench20dAgo;
+                $relative = $momentum - $benchReturn;
+                $s = $this->clamp($relative * 4);
+                $parts[] = $s;
+                $label = $benchmarkLabel ?? 'indeks acuan';
+                $verb = $relative >= 0 ? 'Mengungguli' : 'Kalah dari';
+                $notes[] = "{$verb} {$label} sebesar {$this->pct(abs($relative))} dalam ~20 hari ({$this->describe($s)})";
+            }
+        }
+
         $finalScore = $this->clamp(array_sum($parts) / count($parts));
 
         return ['score' => $finalScore, 'notes' => $notes];
     }
 
-    private function scoreNews(?float $newsScoreRaw, int $articleCount): array
+    // Outlets with an editorial desk and a reputation to protect are weighted higher than an
+    // unknown/small blog — a crude but transparent proxy for source reliability.
+    private const REPUTABLE_SOURCES = [
+        'reuters', 'bloomberg', 'the wall street journal', 'associated press', 'cnbc',
+        'kontan', 'bisnis.com', 'kompas', 'detik finance', 'investor daily', 'katadata', 'antara',
+    ];
+
+    private function scoreNews(array $articles): array
     {
-        if ($newsScoreRaw === null || $articleCount === 0) {
+        if (count($articles) === 0) {
             return ['score' => null, 'notes' => ['Tidak ada berita relevan ditemukan.']];
         }
-        $score = $this->clamp($newsScoreRaw);
 
-        return ['score' => $score, 'notes' => ["Sentimen rata-rata dari {$articleCount} berita: {$this->describe($score)}"]];
+        $weightedSum = 0;
+        $weightTotal = 0;
+        foreach ($articles as $a) {
+            $w = $this->sourceWeight($a['source'] ?? null);
+            $weightedSum += ($a['sentimentScore'] ?? 0) * $w;
+            $weightTotal += $w;
+        }
+        $score = $this->clamp($weightedSum / $weightTotal);
+        $count = count($articles);
+
+        return ['score' => $score, 'notes' => ["Sentimen rata-rata (tertimbang keandalan sumber) dari {$count} berita: {$this->describe($score)}"]];
+    }
+
+    private function sourceWeight(?string $source): float
+    {
+        if (! $source) {
+            return 1.0;
+        }
+        $normalized = mb_strtolower(trim($source));
+        foreach (self::REPUTABLE_SOURCES as $reputable) {
+            if (str_contains($normalized, $reputable)) {
+                return 1.3;
+            }
+        }
+
+        return 1.0;
     }
 
     // Insider/owner open-market buying vs selling. Cluster buying by multiple distinct insiders is

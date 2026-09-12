@@ -2,6 +2,7 @@
 // frontend rewrite — see app/Http/Controllers). Plain fetch rather than Inertia visits, since
 // these are live-search/panel interactions, not full page navigations.
 import type {
+    AccuracyResponse,
     AnalysisResult,
     ApiError,
     HistoryEntry,
@@ -66,4 +67,9 @@ export function fetchScreener(market: Market, horizon: 'trading' | 'longterm' = 
 export function fetchIpoListings(market?: Market): Promise<IpoListing[]> {
     const suffix = market ? `?market=${market}` : '';
     return fetch(`/api/ipo${suffix}`).then((res) => asJson<IpoListing[]>(res));
+}
+
+export function fetchAccuracy(market?: Market): Promise<AccuracyResponse> {
+    const suffix = market ? `?market=${market}` : '';
+    return fetch(`/api/accuracy${suffix}`).then((res) => asJson<AccuracyResponse>(res));
 }

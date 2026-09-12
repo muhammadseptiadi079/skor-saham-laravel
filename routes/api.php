@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccuracyController;
 use App\Http\Controllers\AnalyzeController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\IpoController;
@@ -23,3 +24,5 @@ Route::get('/history', [HistoryController::class, 'index']);
 Route::get('/screener', [ScreenerController::class, 'index']);
 
 Route::get('/ipo', [IpoController::class, 'index']);
+
+Route::get('/accuracy', [AccuracyController::class, 'index']);

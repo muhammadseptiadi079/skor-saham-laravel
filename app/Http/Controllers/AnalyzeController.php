@@ -35,7 +35,9 @@ class AnalyzeController extends Controller
             $analysis = $this->analysisService->analyze($ticker, $market);
             $this->saveHistory($analysis);
 
-            return response()->json($analysis);
+            // priceAtGeneration is only needed internally for the backtest (see saveHistory) —
+            // not part of the public response contract.
+            return response()->json(collect($analysis)->except('priceAtGeneration')->all());
         } catch (\Throwable $e) {
             Log::error('Analyze error: '.$e->getMessage());
 
@@ -61,6 +63,8 @@ class AnalyzeController extends Controller
                 'trading_label' => $analysis['trading']['label'] ?? null,
                 'sub_scores' => $analysis['subScores'] ?? null,
                 'generated_at' => $analysis['generatedAt'],
+                'price_at_generation' => $analysis['priceAtGeneration'] ?? null,
+                'evaluation_horizon_days' => 20,
             ]);
         } catch (\Throwable $e) {
             Log::warning('Failed to save analysis history: '.$e->getMessage());

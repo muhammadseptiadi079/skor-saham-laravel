@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 // Fetches data from the right sources for a ticker/market and runs it through ScoringEngine.
@@ -28,6 +29,8 @@ class StockAnalysisService
             $data['priceSeries'],
             $data['ownershipTransactions'],
             $data['currency'],
+            $data['benchmarkSeries'],
+            $data['benchmarkLabel'],
         );
 
         return array_merge([
@@ -36,6 +39,9 @@ class StockAnalysisService
             'name' => $data['name'] ?? strtoupper($ticker),
             'currency' => $data['currency'],
             'generatedAt' => now()->toIso8601String(),
+            // Captured so the backtest (BacktestService) can later compute a forward return
+            // without re-fetching history from generation time.
+            'priceAtGeneration' => $data['priceSeries'][0]['close'] ?? null,
         ], $analysis);
     }
 
@@ -53,6 +59,8 @@ class StockAnalysisService
             'priceSeries' => $priceSeries,
             'ownershipTransactions' => $insiderTx,
             'currency' => 'USD',
+            'benchmarkSeries' => $this->getGlobalBenchmarkSeries(),
+            'benchmarkLabel' => 'S&P 500',
         ];
     }
 
@@ -74,7 +82,28 @@ class StockAnalysisService
             'priceSeries' => $chart['series'] ?? null,
             'ownershipTransactions' => $insiderTx,
             'currency' => 'IDR',
+            'benchmarkSeries' => $this->getIdxBenchmarkSeries(),
+            'benchmarkLabel' => 'IHSG',
         ];
+    }
+
+    // Benchmark series are shared by every ticker analyzed on a given day, so they're cached
+    // instead of being fetched fresh per ticker — important for the global market especially,
+    // since Alpha Vantage's free tier only allows 25 requests/day total.
+    private function getIdxBenchmarkSeries(): ?array
+    {
+        return Cache::remember('benchmark_series_idx_jkse', now()->addHours(12), function () {
+            $chart = $this->safe(fn () => $this->yahooFinance->getChartForSymbol('^JKSE'));
+
+            return $chart['series'] ?? null;
+        });
+    }
+
+    private function getGlobalBenchmarkSeries(): ?array
+    {
+        return Cache::remember('benchmark_series_global_spy', now()->addHours(12), function () {
+            return $this->safe(fn () => $this->alphaVantage->getDailyTimeSeries('SPY'));
+        });
     }
 
     // Mirrors the Node version's Promise.allSettled behavior: one failing data source

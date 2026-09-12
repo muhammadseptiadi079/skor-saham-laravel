@@ -40,6 +40,8 @@ app/
     HistoryController.php     endpoint GET /api/history
     ScreenerController.php    endpoint GET /api/screener ("potensi naik")
     IpoController.php         endpoint GET /api/ipo
+  Http/Controllers/
+    AccuracyController.php    endpoint GET /api/accuracy ("apakah skornya benar-benar akurat?")
   Services/
     StockAnalysisService.php  orkestrasi fetch + scoring untuk satu ticker (dipakai
                                controller & command, supaya tidak duplikat logic)
@@ -49,6 +51,7 @@ app/
     SentimentService.php      skor sentimen berbasis kata kunci (IDX)
     SecEdgarService.php       data insider Form 4 dari SEC (global)
     IdxIpoService.php         data IPO IDX, best-effort/belum terverifikasi live
+    BacktestService.php       cek skor lama vs harga sekarang, isi kolom evaluasi akurasi
     ScoringEngine.php         logika penggabungan skor & label rekomendasi
   Support/
     TechnicalIndicators.php   RSI, SMA, MACD — dipakai ScoringEngine untuk sub-skor momentum
@@ -57,10 +60,11 @@ app/
   Console/Commands/
     RefreshStockScores.php    php artisan stocks:refresh-scores (isi screener)
     RefreshIpoListings.php    php artisan stocks:refresh-ipo (isi data IPO)
+    EvaluateBacktest.php      php artisan stocks:evaluate-backtest (isi akurasi historis)
 routes/
   web.php   '/' -> Inertia::render('Dashboard') (satu halaman, semua interaksi client-side)
-  api.php   /api/analyze, /api/watchlist, /api/history, /api/screener, /api/ipo
-  console.php  jadwal harian untuk kedua command di atas
+  api.php   /api/analyze, /api/watchlist, /api/history, /api/screener, /api/ipo, /api/accuracy
+  console.php  jadwal harian untuk ketiga command di atas
 resources/
   views/app.blade.php       root view Inertia (@vite + @inertia)
   js/
@@ -165,6 +169,47 @@ standar (semua tetap rule-based & transparan, dihitung di
 Indikator yang datanya belum cukup otomatis dilewati (tidak memaksakan nilai
 kosong), jadi sub-skor momentum tetap jalan walau baru punya 20 hari data.
 
+## Fitur peningkatan akurasi
+
+Empat perubahan berikut ditambahkan khusus untuk menjawab "seberapa benar
+sih skor ini?" — tetap 100% rule-based/transparan, tidak ada model ML:
+
+- **PEG ratio** — sekarang ikut dinilai di sub-skor fundamental (PEG < 1
+  dianggap murah relatif terhadap pertumbuhan labanya sendiri, > 2 dianggap
+  mahal). Datanya sebenarnya sudah lama di-fetch dari Alpha Vantage/Yahoo,
+  cuma belum pernah dipakai sampai sekarang.
+- **Momentum relatif terhadap indeks (IHSG/S&P 500)** — saham naik 5% itu
+  biasa saja kalau IHSG lagi naik 8%, tapi kuat kalau IHSG lagi turun.
+  `ScoringEngine::scoreMomentum` sekarang membandingkan return 20 hari
+  saham vs benchmark-nya (`^JKSE` untuk IDX, `SPY` untuk global — di-cache
+  12 jam supaya tidak boros kuota Alpha Vantage karena dipakai bersama oleh
+  semua ticker).
+- **Sentimen berita ditimbang berdasarkan reputasi sumber** — artikel dari
+  outlet besar (Reuters, Bloomberg, Kontan, Bisnis.com, dst — daftar di
+  `ScoringEngine::REPUTABLE_SOURCES`) punya bobot 1.3x dibanding sumber
+  tidak dikenal, plus kamus kata kunci sentimen Indonesia yang lebih luas
+  di `SentimentService`.
+- **Info sektor** ditampilkan sebagai konteks di catatan fundamental
+  (`Sektor: ...`) — **tidak** dipakai untuk membandingkan rasio (P/E 20
+  murah untuk saham tambang, mahal untuk teknologi), karena tidak ada
+  sumber data gratis untuk rata-rata rasio per sektor yang bisa diandalkan.
+  Kalau nanti ada sumber datanya, ini titik yang paling logis untuk
+  diperluas lebih lanjut.
+- **Akurasi historis** (`/api/accuracy`, panel "Akurasi Historis" di
+  dashboard) — inilah jawaban paling jujur untuk "seberapa akurat":
+  `BacktestService` mengecek analisis lama (≥28 hari, ekuivalen ~20 hari
+  bursa) lalu melihat harga sekarang — apakah arah yang diprediksi label
+  **trading** (Buy/Sell/dst) benar-benar terjadi. Hasilnya diagregasi per
+  label dan ditampilkan apa adanya, termasuk kalau hasilnya jelek. Diisi
+  lewat:
+  ```
+  php artisan stocks:evaluate-backtest
+  php artisan stocks:evaluate-backtest --min-age-days=28 --limit=50
+  ```
+  Dijadwalkan otomatis tiap hari jam 05:00. **Perlu waktu untuk terisi** —
+  baru ada hasil setelah analisis pertama berumur ≥28 hari, jadi panel ini
+  akan kosong di awal pemakaian, itu wajar bukan bug.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -238,7 +283,14 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 24 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 39 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
-`/api/*` merespons normal.
+`/api/*` (termasuk `/api/accuracy`) merespons normal.
+
+Satu hal lagi soal fitur akurasi: `BacktestService` mengambil harga
+"sekarang" lewat endpoint Yahoo/Alpha Vantage yang sama seperti di atas —
+jadi berlaku keterbatasan yang sama (belum diuji live). Dan karena
+sifatnya memang perlu waktu (analisis harus berumur ≥28 hari dulu), panel
+akurasinya **tidak akan langsung terisi** meski semua endpoint berfungsi
+sempurna — itu bagian dari desainnya, bukan tanda ada yang salah.

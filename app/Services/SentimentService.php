@@ -13,6 +13,11 @@ class SentimentService
         'akuisisi', 'dividen', 'rekor', 'positif', 'optimis', 'pulih', 'melesat',
         'surplus', 'kinerja apik', 'kinerja moncer', 'cuan', 'bullish', 'terbaik',
         'meningkat', 'melampaui', 'capaian', 'sukses', 'pertumbuhan', 'kenaikan',
+        'membaik', 'apresiasi', 'akselerasi', 'solid', 'menghijau', 'reli', 'topang',
+        'dongkrak', 'melampaui ekspektasi', 'raih penghargaan', 'ekspansi bisnis',
+        'laba bersih naik', 'kinerja solid', 'prospek cerah', 'valuasi menarik',
+        'oversubscribed', 'buyback', 'stock split', 'penguatan', 'pertumbuhan double digit',
+        'peringkat kredit naik', 'upgrade', 'restrukturisasi sukses', 'kontrak baru',
     ];
 
     private const NEGATIVE_WORDS = [
@@ -20,6 +25,11 @@ class SentimentService
         'pesimis', 'gagal', 'default', 'utang', 'defisit', 'phk', 'bangkrut', 'skandal',
         'penurunan', 'koreksi', 'bearish', 'tekanan', 'terjun', 'gugat', 'sanksi',
         'penyelidikan', 'terseret', 'kerugian', 'delisting', 'suspensi', 'suspend',
+        'memburuk', 'depresiasi', 'stagnan', 'melambat', 'downgrade', 'peringatan',
+        'kerugian bersih', 'restrukturisasi utang', 'gagal bayar', 'wanprestasi',
+        'class action', 'mogok kerja', 'force majeure', 'pailit', 'pkpu',
+        'window dressing', 'manipulasi', 'ojk jatuhkan sanksi', 'memerah', 'volatil',
+        'peringkat kredit turun', 'kebakaran pabrik', 'kecelakaan kerja', 'audit bermasalah',
     ];
 
     public function scoreHeadline(string $title): float

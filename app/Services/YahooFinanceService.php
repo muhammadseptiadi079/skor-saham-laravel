@@ -17,7 +17,13 @@ class YahooFinanceService
 
     public function getChart(string $ticker): ?array
     {
-        $symbol = $this->normalizeIdxTicker($ticker);
+        return $this->getChartForSymbol($this->normalizeIdxTicker($ticker));
+    }
+
+    // Like getChart(), but skips the .JK ticker normalization — needed for index/benchmark
+    // symbols (e.g. ^JKSE for IHSG) which aren't regular IDX-listed tickers.
+    public function getChartForSymbol(string $symbol): ?array
+    {
         $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
             ->get("https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}", [
                 // 6mo gives enough daily bars for SMA50/MACD (needs 35-50+ closes), not just the
@@ -67,7 +73,7 @@ class YahooFinanceService
         try {
             $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
                 ->get("https://query1.finance.yahoo.com/v10/finance/quoteSummary/{$symbol}", [
-                    'modules' => 'financialData,defaultKeyStatistics,summaryDetail',
+                    'modules' => 'financialData,defaultKeyStatistics,summaryDetail,summaryProfile',
                 ])->json();
 
             $result = $data['quoteSummary']['result'][0] ?? null;
@@ -78,6 +84,7 @@ class YahooFinanceService
             $fin = $result['financialData'] ?? [];
             $stats = $result['defaultKeyStatistics'] ?? [];
             $summary = $result['summaryDetail'] ?? [];
+            $profile = $result['summaryProfile'] ?? [];
 
             return [
                 'peRatio' => $this->raw($summary['trailingPE'] ?? null),
@@ -88,7 +95,9 @@ class YahooFinanceService
                 'debtToEquity' => $this->raw($fin['debtToEquity'] ?? null),
                 'returnOnEquity' => $this->raw($fin['returnOnEquity'] ?? null),
                 'marketCap' => $this->raw($stats['marketCap'] ?? ($summary['marketCap'] ?? null)),
-                'sector' => null,
+                // Display-only context (see ScoringEngine::scoreFundamentals) — not scored, since
+                // there's no free source for sector-average ratios to compare it against.
+                'sector' => $profile['sector'] ?? null,
             ];
         } catch (\Throwable $e) {
             return null;

@@ -12,3 +12,4 @@ Artisan::command('inspire', function () {
 // request. Staggered so they don't compete for the same Alpha Vantage daily quota at once.
 Schedule::command('stocks:refresh-scores')->dailyAt('03:00');
 Schedule::command('stocks:refresh-ipo')->dailyAt('04:00');
+Schedule::command('stocks:evaluate-backtest')->dailyAt('05:00');
