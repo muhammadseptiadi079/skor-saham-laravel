@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AnalysisHistory;
+use App\Services\SubScoreAccuracyService;
 use Illuminate\Http\Request;
 
 // Transparency panel: measures whether the "trading" label's predicted direction actually held up
@@ -10,11 +11,15 @@ use Illuminate\Http\Request;
 // always reads whatever `stocks:evaluate-backtest` has accumulated.
 class AccuracyController extends Controller
 {
+    public function __construct(private SubScoreAccuracyService $subScoreAccuracy) {}
+
     public function index(Request $request)
     {
-        $query = AnalysisHistory::query()->whereNotNull('outcome_correct');
+        $market = $request->query('market');
+        $subScoreAccuracy = $this->subScoreAccuracy->report($market);
 
-        if ($market = $request->query('market')) {
+        $query = AnalysisHistory::query()->whereNotNull('outcome_correct');
+        if ($market) {
             $query->where('market', $market);
         }
 
@@ -26,6 +31,7 @@ class AccuracyController extends Controller
                 'accuracy' => null,
                 'avgForwardReturnPct' => null,
                 'byLabel' => [],
+                'subScoreAccuracy' => $subScoreAccuracy,
             ]);
         }
 
@@ -48,6 +54,7 @@ class AccuracyController extends Controller
             'accuracy' => round($totalCorrect / $graded->count() * 100, 1),
             'avgForwardReturnPct' => round($graded->avg('forward_return') * 100, 2),
             'byLabel' => $byLabel,
+            'subScoreAccuracy' => $subScoreAccuracy,
         ]);
     }
 }

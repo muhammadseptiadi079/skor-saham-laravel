@@ -9,8 +9,14 @@ use App\Support\TechnicalIndicators;
 // financial markets are not reliably predictable, and this tool should never be read as one.
 class ScoringEngine
 {
+    // Initial estimates, not derived from data. Once /api/accuracy's subScoreAccuracy has enough
+    // samples (see SubScoreAccuracyService), use it to sanity-check whether these still make sense
+    // — e.g. a sub-score with consistently poor directional accuracy is a candidate to de-weight.
     private const WEIGHTS = [
-        'longterm' => ['fundamentals' => 0.45, 'news' => 0.15, 'momentum' => 0.15, 'ownership' => 0.25],
+        // 'momentum' here is the ~20-day window (matches the trading horizon); the longer trend is
+        // a distinct sub-score ('momentumLongTerm') so a short-term wiggle can't drive a "buy for
+        // years" call, and a long-term uptrend can't drive a "buy for the next few weeks" call.
+        'longterm' => ['fundamentals' => 0.45, 'news' => 0.15, 'momentumLongTerm' => 0.15, 'ownership' => 0.25],
         'trading' => ['fundamentals' => 0.1, 'news' => 0.3, 'momentum' => 0.4, 'ownership' => 0.2],
     ];
 
@@ -25,6 +31,7 @@ class ScoringEngine
     ): array {
         $fundamentalResult = $this->scoreFundamentals($fundamentals);
         $momentumResult = $this->scoreMomentum($priceSeries, $benchmarkSeries, $benchmarkLabel);
+        $longTermTrendResult = $this->scoreLongTermTrend($priceSeries);
         $ownershipResult = $this->scoreOwnership($ownershipTransactions, $currency);
 
         $newsArticles = $newsArticles ?? [];
@@ -34,11 +41,14 @@ class ScoringEngine
             'fundamentals' => $fundamentalResult,
             'news' => $newsResult,
             'momentum' => $momentumResult,
+            'momentumLongTerm' => $longTermTrendResult,
             'ownership' => $ownershipResult,
         ];
 
         $longtermScore = $this->combine($subScores, 'longterm');
         $tradingScore = $this->combine($subScores, 'trading');
+
+        $available = count(array_filter($subScores, fn ($s) => $s['score'] !== null));
 
         return [
             'subScores' => [
@@ -49,12 +59,14 @@ class ScoringEngine
                     'topArticles' => array_slice($newsArticles, 0, 5),
                 ],
                 'momentum' => ['score' => $momentumResult['score'], 'notes' => $momentumResult['notes']],
+                'momentumLongTerm' => ['score' => $longTermTrendResult['score'], 'notes' => $longTermTrendResult['notes']],
                 'ownership' => [
                     'score' => $ownershipResult['score'],
                     'notes' => $ownershipResult['notes'],
                     'transactions' => $ownershipResult['transactions'] ?? [],
                 ],
             ],
+            'dataCompleteness' => ['available' => $available, 'total' => count($subScores)],
             'longterm' => ['score' => $longtermScore, 'label' => $this->labelFor($longtermScore)],
             'trading' => ['score' => $tradingScore, 'label' => $this->labelFor($tradingScore)],
             'disclaimer' => 'Ini analisis berbasis aturan sederhana (bukan prediksi yang terjamin akurat). '.
@@ -235,6 +247,54 @@ class ScoringEngine
         return ['score' => $finalScore, 'notes' => $notes];
     }
 
+    // A separate, longer window from scoreMomentum() — used only for the "longterm" horizon, so a
+    // short-term wiggle can't drive a multi-year call and vice versa. Uses the longest window the
+    // price series can support (up to 100 days); below 60 days there isn't enough history for a
+    // trend distinct from scoreMomentum's 20-day one to be meaningful.
+    private function scoreLongTermTrend(?array $series): array
+    {
+        if (! $series) {
+            return ['score' => null, 'notes' => ['Data harga tidak tersedia untuk tren jangka panjang.']];
+        }
+
+        $closesChrono = array_values(array_filter(
+            array_reverse(array_column($series, 'close')),
+            fn ($c) => $c !== null
+        ));
+
+        $window = min(count($closesChrono), 100);
+        if ($window < 60) {
+            $have = count($closesChrono);
+
+            return ['score' => null, 'notes' => ["Data harga belum cukup untuk tren jangka panjang (butuh minimal 60 hari, baru ada {$have})."]];
+        }
+
+        $windowed = array_slice($closesChrono, -$window);
+        $closeNow = end($windowed);
+        $closeStart = $windowed[0];
+        $longReturn = ($closeNow - $closeStart) / $closeStart;
+
+        $sma = TechnicalIndicators::sma($closesChrono, $window);
+        $aboveSma = $sma !== null && $closeNow > $sma;
+
+        $returnScore = $this->clamp($longReturn * 2);
+        $arah = $longReturn >= 0 ? 'naik' : 'turun';
+        $parts = [$returnScore];
+        $notes = ["Harga {$arah} {$this->pct(abs($longReturn))} dalam ~{$window} hari perdagangan ({$this->describe($returnScore)})"];
+
+        if ($sma !== null) {
+            $smaScore = $aboveSma ? 0.4 : -0.4;
+            $parts[] = $smaScore;
+            $notes[] = $aboveSma
+                ? "Harga di atas rata-rata {$window} hari (tren jangka panjang naik)"
+                : "Harga di bawah rata-rata {$window} hari (tren jangka panjang turun)";
+        }
+
+        $score = $this->clamp(array_sum($parts) / count($parts));
+
+        return ['score' => $score, 'notes' => $notes];
+    }
+
     // Outlets with an editorial desk and a reputation to protect are weighted higher than an
     // unknown/small blog — a crude but transparent proxy for source reliability.
     private const REPUTABLE_SOURCES = [
@@ -292,8 +352,10 @@ class ScoringEngine
         $buys = array_values(array_filter($relevant, fn ($t) => $t['type'] === 'buy'));
         $sells = array_values(array_filter($relevant, fn ($t) => $t['type'] === 'sell'));
 
-        $buyValue = $this->sumValue($buys);
-        $sellValue = $this->sumValue($sells);
+        // Buyer/seller counts stay undecayed — "did several different people act" is about
+        // breadth, not recency. Only the dollar value driving the score itself decays with age.
+        $buyValue = $this->sumWeightedValue($buys);
+        $sellValue = $this->sumWeightedValue($sells);
         $buyers = count(array_unique(array_map(fn ($t) => $t['insiderName'], $buys)));
         $sellers = count(array_unique(array_map(fn ($t) => $t['insiderName'], $sells)));
 
@@ -321,13 +383,53 @@ class ScoringEngine
         if ($sellers >= 3 && $score < 0) {
             $notes[] = 'Penjualan dilakukan oleh beberapa orang berbeda — bisa jadi kekhawatiran bersama, meski juga bisa sekadar kebutuhan pribadi masing-masing.';
         }
+        if ($this->hasStaleTransaction($relevant)) {
+            $notes[] = 'Transaksi yang lebih lama diberi bobot lebih kecil dari yang baru-baru ini.';
+        }
 
         return ['score' => $score, 'notes' => $notes, 'transactions' => array_slice($relevant, 0, 8)];
     }
 
-    private function sumValue(array $list): float
+    private function sumWeightedValue(array $list): float
     {
-        return array_sum(array_map(fn ($t) => $t['value'] ?? 0, $list));
+        return array_sum(array_map(
+            fn ($t) => ($t['value'] ?? 0) * $this->insiderTimeWeight($t['date'] ?? null),
+            $list
+        ));
+    }
+
+    private function hasStaleTransaction(array $list): bool
+    {
+        foreach ($list as $t) {
+            if ($this->insiderTimeWeight($t['date'] ?? null) < 1.0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Recent insider activity is a stronger signal than something that happened months ago — a
+    // purchase from half a year back says little about the outlook today. A missing/unparseable
+    // date isn't penalized (1.0): several sources don't always supply one, and it shouldn't be
+    // punished as if it were stale.
+    private function insiderTimeWeight(?string $date): float
+    {
+        if (! $date) {
+            return 1.0;
+        }
+        try {
+            $days = (new \DateTimeImmutable)->diff(new \DateTimeImmutable($date))->days;
+        } catch (\Throwable $e) {
+            return 1.0;
+        }
+
+        return match (true) {
+            $days <= 30 => 1.0,
+            $days <= 90 => 0.7,
+            $days <= 180 => 0.4,
+            default => 0.15,
+        };
     }
 
     private function money(float $v, string $currency): string

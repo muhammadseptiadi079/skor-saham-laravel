@@ -3,7 +3,14 @@ import GlassCard from '@/Components/GlassCard';
 import ScoreGauge from '@/Components/charts/ScoreGauge';
 import SubScoreBarChart from '@/Components/charts/SubScoreBarChart';
 import HistoryLineChart from '@/Components/charts/HistoryLineChart';
-import { StarIcon, NewsIcon, UsersIcon } from '@/Components/Icons';
+import { StarIcon, NewsIcon, UsersIcon, GaugeIcon } from '@/Components/Icons';
+
+function completenessColorClass(available: number, total: number): string {
+    if (available === total) return 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300';
+    if (available >= total / 2) return 'border-amber-400/30 bg-amber-400/10 text-amber-300';
+
+    return 'border-rose-400/30 bg-rose-400/10 text-rose-300';
+}
 
 interface ResultPanelProps {
     result: AnalysisResult;
@@ -43,11 +50,20 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                     </h2>
                     <p className="text-xs text-slate-500">Diperbarui: {when.toLocaleString('id-ID')}</p>
                 </div>
-                {isBearish && (
-                    <span className="animate-pulse-ring rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-rose-300 uppercase">
-                        Perlu perhatian
+                <div className="flex flex-col items-end gap-1.5">
+                    {isBearish && (
+                        <span className="animate-pulse-ring rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-rose-300 uppercase">
+                            Perlu perhatian
+                        </span>
+                    )}
+                    <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold whitespace-nowrap ${completenessColorClass(result.dataCompleteness.available, result.dataCompleteness.total)}`}
+                        title="Jumlah sub-skor yang datanya tersedia untuk analisis ini"
+                    >
+                        <GaugeIcon className="h-3 w-3" />
+                        {result.dataCompleteness.available}/{result.dataCompleteness.total} sub-skor tersedia
                     </span>
-                )}
+                </div>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
@@ -81,6 +97,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                             { label: 'Fundamental', score: result.subScores.fundamentals.score },
                             { label: 'Berita', score: result.subScores.news.score },
                             { label: 'Momentum', score: result.subScores.momentum.score },
+                            { label: 'Tren Panjang', score: result.subScores.momentumLongTerm.score },
                             { label: 'Kepemilikan', score: result.subScores.ownership.score },
                         ]}
                     />
@@ -119,6 +136,13 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                 <GlassCard className="p-3.5">
                     <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Momentum & Volume</h4>
                     <NoteList notes={result.subScores.momentum.notes} />
+                </GlassCard>
+
+                <GlassCard className="p-3.5">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                        Tren Jangka Panjang
+                    </h4>
+                    <NoteList notes={result.subScores.momentumLongTerm.notes} />
                 </GlassCard>
 
                 <GlassCard className="p-3.5">

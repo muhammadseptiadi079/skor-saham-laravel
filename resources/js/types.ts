@@ -36,6 +36,11 @@ export interface HorizonResult {
     label: string;
 }
 
+export interface DataCompleteness {
+    available: number;
+    total: number;
+}
+
 export interface AnalysisResult {
     ticker: string;
     market: Market;
@@ -46,8 +51,10 @@ export interface AnalysisResult {
         fundamentals: SubScoreResult;
         news: NewsSubScore;
         momentum: SubScoreResult;
+        momentumLongTerm: SubScoreResult;
         ownership: OwnershipSubScore;
     };
+    dataCompleteness: DataCompleteness;
     longterm: HorizonResult;
     trading: HorizonResult;
     disclaimer: string;
@@ -115,11 +122,18 @@ export interface AccuracyByLabel {
     avgForwardReturnPct: number;
 }
 
+export interface SubScoreAccuracy {
+    subScore: string;
+    sampleSize: number;
+    directionalAccuracy: number | null;
+}
+
 export interface AccuracyResponse {
     sampleSize: number;
     accuracy: number | null;
     avgForwardReturnPct: number | null;
     byLabel: AccuracyByLabel[];
+    subScoreAccuracy: SubScoreAccuracy[];
 }
 
 export interface ApiError {

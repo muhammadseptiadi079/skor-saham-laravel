@@ -210,6 +210,34 @@ sih skor ini?" — tetap 100% rule-based/transparan, tidak ada model ML:
   baru ada hasil setelah analisis pertama berumur ≥28 hari, jadi panel ini
   akan kosong di awal pemakaian, itu wajar bukan bug.
 
+Empat perubahan lanjutan (masih 100% rule-based, masih tanpa ML):
+
+- **Badge kelengkapan data** (`X/5 sub-skor tersedia`, di pojok kanan atas
+  hasil analisis) — supaya jelas kalau suatu skor dihasilkan dari data
+  lengkap atau cuma dari 1-2 sub-skor yang kebetulan tersedia. Hijau =
+  lengkap, kuning = separuh, merah = sangat minim.
+- **Tren jangka panjang terpisah dari momentum trading** — sebelumnya skor
+  **jangka panjang** dan **trading** sama-sama pakai momentum 20 hari yang
+  sama, padahal horizonnya beda jauh. Sekarang ada sub-skor baru
+  `momentumLongTerm` (`ScoringEngine::scoreLongTermTrend`, pakai window
+  sampai 100 hari) yang dipakai khusus untuk skor jangka panjang, sementara
+  skor trading tetap pakai momentum 20 hari seperti biasa.
+- **Transaksi insider diberi bobot berdasarkan usia** — pembelian minggu
+  lalu lebih berarti daripada pembelian 6 bulan lalu. Nilai transaksi kini
+  di-diskon: 100% (≤30 hari), 70% (≤90 hari), 40% (≤180 hari), 15% (lebih
+  lama). Tanggal yang kosong/tidak valid tidak didiskon (dianggap netral,
+  bukan basi).
+- **Laporan akurasi arah per sub-skor** (bagian bawah panel "Akurasi
+  Historis") — dari data backtest yang ada, seberapa sering arah tiap
+  sub-skor (fundamental, berita, momentum, tren panjang, kepemilikan)
+  cocok dengan arah harga yang benar-benar terjadi. **Ini cuma laporan
+  untuk dibaca manusia** — sengaja tidak otomatis mengubah bobot di
+  `ScoringEngine::WEIGHTS`, karena sampel datanya (apalagi di awal
+  pemakaian) masih terlalu sedikit untuk kalibrasi otomatis yang aman;
+  gampang salah mengira noise sebagai sinyal. Kalau suatu sub-skor
+  konsisten performanya jelek selama berbulan-bulan, itu baru alasan kuat
+  untuk mempertimbangkan ubah bobotnya secara manual.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -283,7 +311,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 39 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 47 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

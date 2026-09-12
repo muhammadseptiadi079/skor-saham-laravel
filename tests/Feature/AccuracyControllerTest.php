@@ -16,6 +16,7 @@ class AccuracyControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertJson(['sampleSize' => 0, 'accuracy' => null, 'byLabel' => []]);
+        $response->assertJsonStructure(['subScoreAccuracy' => [['subScore', 'sampleSize', 'directionalAccuracy']]]);
     }
 
     public function test_aggregates_accuracy_by_label(): void

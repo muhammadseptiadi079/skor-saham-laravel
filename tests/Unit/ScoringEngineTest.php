@@ -195,4 +195,102 @@ class ScoringEngineTest extends TestCase
         $notes = implode(' ', $result['subScores']['momentum']['notes']);
         $this->assertStringNotContainsString('IHSG', $notes);
     }
+
+    public function test_long_term_trend_is_null_below_60_days_of_history(): void
+    {
+        $series = array_fill(0, 20, ['close' => 100, 'volume' => 1000]);
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertNull($result['subScores']['momentumLongTerm']['score']);
+        $this->assertStringContainsString('60 hari', $result['subScores']['momentumLongTerm']['notes'][0]);
+    }
+
+    public function test_long_term_trend_scores_positive_for_a_sustained_uptrend(): void
+    {
+        // 100 days, oldest first internally: price roughly doubles over the window.
+        $series = [];
+        for ($i = 0; $i < 100; $i++) {
+            $series[] = ['close' => 200 - $i, 'volume' => 1000]; // newest (i=0) highest
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertNotNull($result['subScores']['momentumLongTerm']['score']);
+        $this->assertGreaterThan(0, $result['subScores']['momentumLongTerm']['score']);
+        $this->assertStringContainsString('100 hari', implode(' ', $result['subScores']['momentumLongTerm']['notes']));
+    }
+
+    public function test_momentum_and_long_term_trend_use_independent_horizons(): void
+    {
+        // Chronologically (t=0 oldest .. t=99 newest): price climbs 100 -> 179 over 80 days, then
+        // dips over the most recent 20 days down to 139. Long-term: clearly up overall. Short-term
+        // (last 20 days only): clearly down. momentum (trading, 20d) should read bearish while
+        // momentumLongTerm (full window) reads bullish.
+        $pricesByAge = [];
+        for ($t = 0; $t < 100; $t++) {
+            $pricesByAge[$t] = $t <= 79 ? 100 + $t : 179 - ($t - 79) * 2;
+        }
+        $series = [];
+        foreach (array_reverse($pricesByAge) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertLessThan(0, $result['subScores']['momentum']['score']);
+        $this->assertGreaterThan(0, $result['subScores']['momentumLongTerm']['score']);
+    }
+
+    public function test_data_completeness_counts_available_sub_scores(): void
+    {
+        $result = $this->engine->buildAnalysis(['pegRatio' => 0.8], null, null, null, 'IDR');
+
+        $this->assertSame(1, $result['dataCompleteness']['available']);
+        $this->assertSame(5, $result['dataCompleteness']['total']);
+    }
+
+    public function test_insider_time_decay_discounts_old_transactions(): void
+    {
+        $today = date('Y-m-d');
+        $longAgo = date('Y-m-d', strtotime('-200 days'));
+
+        // Equal raw buy/sell value would net to a neutral score (0), but the sell is old enough
+        // (200 days) to be heavily discounted, so buying pressure should win out.
+        $transactions = [
+            ['type' => 'buy', 'insiderName' => 'A', 'value' => 1_000_000, 'shares' => 100, 'date' => $today],
+            ['type' => 'sell', 'insiderName' => 'B', 'value' => 1_000_000, 'shares' => 100, 'date' => $longAgo],
+        ];
+
+        $result = $this->engine->buildAnalysis(null, null, null, $transactions, 'IDR');
+
+        $this->assertGreaterThan(0.5, $result['subScores']['ownership']['score']);
+        $this->assertStringContainsString('bobot lebih kecil', implode(' ', $result['subScores']['ownership']['notes']));
+    }
+
+    public function test_insider_transaction_without_date_is_not_penalized(): void
+    {
+        $transactions = [
+            ['type' => 'buy', 'insiderName' => 'A', 'value' => 1_000_000, 'shares' => 100, 'date' => null],
+            ['type' => 'sell', 'insiderName' => 'B', 'value' => 1_000_000, 'shares' => 100, 'date' => null],
+        ];
+
+        $result = $this->engine->buildAnalysis(null, null, null, $transactions, 'IDR');
+
+        $this->assertEqualsWithDelta(0.0, $result['subScores']['ownership']['score'], 0.0001);
+        $this->assertStringNotContainsString('bobot lebih kecil', implode(' ', $result['subScores']['ownership']['notes']));
+    }
+
+    public function test_data_completeness_is_full_when_everything_available(): void
+    {
+        $fundamentals = ['pegRatio' => 0.8];
+        $articles = [['title' => 'A', 'sentimentScore' => 0.5]];
+        $series = array_fill(0, 100, ['close' => 100, 'volume' => 1000]);
+        $transactions = [['type' => 'buy', 'insiderName' => 'A', 'value' => 1000, 'shares' => 10, 'date' => null]];
+
+        $result = $this->engine->buildAnalysis($fundamentals, $articles, $series, $transactions, 'IDR');
+
+        $this->assertSame(5, $result['dataCompleteness']['available']);
+        $this->assertSame(5, $result['dataCompleteness']['total']);
+    }
 }

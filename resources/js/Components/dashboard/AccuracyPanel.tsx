@@ -2,6 +2,14 @@ import type { AccuracyResponse } from '@/types';
 import Panel from './Panel';
 import { GaugeIcon } from '@/Components/Icons';
 
+const SUB_SCORE_LABELS: Record<string, string> = {
+    fundamentals: 'Fundamental',
+    news: 'Berita',
+    momentum: 'Momentum (Trading)',
+    momentumLongTerm: 'Tren Panjang',
+    ownership: 'Kepemilikan',
+};
+
 function accuracyColorClass(accuracy: number): string {
     if (accuracy >= 60) return 'text-emerald-400';
     if (accuracy >= 45) return 'text-amber-400';
@@ -21,6 +29,8 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
             </Panel>
         );
     }
+
+    const subScoreRows = data.subScoreAccuracy.filter((row) => row.sampleSize > 0);
 
     return (
         <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-sky-300" />}>
@@ -48,6 +58,32 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
                     </li>
                 ))}
             </ul>
+
+            {subScoreRows.length > 0 && (
+                <div className="mt-4 border-t border-white/10 pt-3">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                        Akurasi Arah per Sub-skor
+                    </h4>
+                    <p className="mb-2 text-xs text-slate-500">
+                        Seberapa sering arah sub-skor ini (positif/negatif) cocok dengan arah harga
+                        yang benar-benar terjadi — bahan pertimbangan kalau suatu saat mau
+                        menyesuaikan bobot di <code className="rounded bg-white/10 px-1 py-0.5">ScoringEngine::WEIGHTS</code>.
+                    </p>
+                    <ul className="flex flex-col gap-1.5">
+                        {subScoreRows.map((row) => (
+                            <li key={row.subScore} className="flex items-center justify-between gap-2 text-xs">
+                                <span className="text-slate-300">{SUB_SCORE_LABELS[row.subScore] ?? row.subScore}</span>
+                                <span className="flex items-center gap-2 text-slate-500">
+                                    <span>{row.sampleSize} sampel</span>
+                                    <span className={`font-semibold ${accuracyColorClass(row.directionalAccuracy ?? 0)}`}>
+                                        {row.directionalAccuracy}%
+                                    </span>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </Panel>
     );
 }
