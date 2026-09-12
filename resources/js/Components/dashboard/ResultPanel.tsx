@@ -80,8 +80,8 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                         rows={[
                             { label: 'Fundamental', score: result.subScores.fundamentals.score },
                             { label: 'Berita', score: result.subScores.news.score },
-                            { label: 'Momentum & Volume', score: result.subScores.momentum.score },
-                            { label: 'Kepemilikan & Insider', score: result.subScores.ownership.score },
+                            { label: 'Momentum', score: result.subScores.momentum.score },
+                            { label: 'Kepemilikan', score: result.subScores.ownership.score },
                         ]}
                     />
                 </GlassCard>

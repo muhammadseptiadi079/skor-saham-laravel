@@ -2,6 +2,13 @@ import type { IpoListing } from '@/types';
 import Panel from './Panel';
 import { BriefcaseIcon } from '@/Components/Icons';
 
+function formatIpoDate(date: string | null): string {
+    if (!date) return '';
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return date;
+    return parsed.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export default function IpoPanel({ items }: { items: IpoListing[] }) {
     return (
         <Panel title="IPO Terbaru" icon={<BriefcaseIcon className="h-4 w-4 text-orange-300" />}>
@@ -24,7 +31,7 @@ export default function IpoPanel({ items }: { items: IpoListing[] }) {
                                 {item.ticker ? ` (${item.ticker})` : ''}{' '}
                                 <span className="text-slate-500">— {item.market === 'idx' ? 'IDX' : 'Global'}</span>
                             </span>
-                            <span className="text-xs whitespace-nowrap text-slate-400">{item.ipo_date ?? ''}</span>
+                            <span className="text-xs whitespace-nowrap text-slate-400">{formatIpoDate(item.ipo_date)}</span>
                         </li>
                     ))}
                 </ul>
