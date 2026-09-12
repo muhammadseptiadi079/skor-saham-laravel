@@ -274,6 +274,19 @@ Empat perubahan lagi (round ketiga, masih rule-based/tanpa ML):
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
   cuma IndexedDB di HP seperti riwayat lama), supaya screener tahu ticker
   mana yang mau dipantau.
+  - **Sektor**: setiap item dikelompokkan per sektor (`App\Support\Sectors`
+    — Pertambangan, Keuangan & Perbankan, Kesehatan, Konstruksi &
+    Infrastruktur, Konsumer & Ritel, Energi, Teknologi, Properti & Real
+    Estate, Industri & Manufaktur, Lainnya). Sektornya dipilih manual oleh
+    user saat menambah (bisa diubah lagi kapan saja lewat dropdown di
+    panel Watchlist) — bukan diambil otomatis dari field `sector` Yahoo
+    Finance/Alpha Vantage, karena itu teks bebas yang sering kosong/tidak
+    konsisten untuk ticker IDX.
+  - **Favorit**: tombol bintang per item (`PATCH /api/watchlist/{id}` dengan
+    `is_favorite`) untuk menandai saham yang benar-benar sudah dibeli,
+    supaya beda dari yang cuma dipantau. Filter "Favorit saja" di panel
+    Watchlist menyaring ke saham berstatus favorit itu saja — murni alat
+    bantu pengelompokan, tidak memengaruhi skor `ScoringEngine`.
 - **Riwayat** (`/api/history`) — setiap kali `/api/analyze` dipanggil,
   hasilnya otomatis tersimpan ke tabel `analysis_history`. Gagal simpan
   tidak akan menggagalkan response analisa (best-effort).
@@ -342,7 +355,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 59 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 63 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

@@ -6,5 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class WatchlistItem extends Model
 {
-    protected $fillable = ['ticker', 'market', 'name'];
+    protected $fillable = ['ticker', 'market', 'name', 'sector', 'is_favorite'];
+
+    protected $casts = [
+        'is_favorite' => 'boolean',
+    ];
 }

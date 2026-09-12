@@ -66,6 +66,8 @@ export interface WatchlistItem {
     ticker: string;
     market: Market;
     name: string | null;
+    sector: string;
+    is_favorite: boolean;
     created_at: string;
     updated_at: string;
 }

@@ -39,11 +39,27 @@ export function fetchWatchlist(): Promise<WatchlistItem[]> {
     return fetch('/api/watchlist').then((res) => asJson<WatchlistItem[]>(res));
 }
 
-export function addToWatchlist(ticker: string, market: Market, name?: string | null): Promise<WatchlistItem> {
+export function addToWatchlist(
+    ticker: string,
+    market: Market,
+    name?: string | null,
+    sector?: string
+): Promise<WatchlistItem> {
     return fetch('/api/watchlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker, market, name }),
+        body: JSON.stringify({ ticker, market, name, sector }),
+    }).then((res) => asJson<WatchlistItem>(res));
+}
+
+export function updateWatchlistItem(
+    id: number,
+    patch: Partial<Pick<WatchlistItem, 'sector' | 'is_favorite'>>
+): Promise<WatchlistItem> {
+    return fetch(`/api/watchlist/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
     }).then((res) => asJson<WatchlistItem>(res));
 }
 

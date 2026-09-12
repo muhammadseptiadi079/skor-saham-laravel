@@ -17,6 +17,7 @@ Route::get('/analyze', [AnalyzeController::class, 'analyze']);
 
 Route::get('/watchlist', [WatchlistController::class, 'index']);
 Route::post('/watchlist', [WatchlistController::class, 'store']);
+Route::patch('/watchlist/{watchlistItem}', [WatchlistController::class, 'update']);
 Route::delete('/watchlist/{watchlistItem}', [WatchlistController::class, 'destroy']);
 
 Route::get('/history', [HistoryController::class, 'index']);

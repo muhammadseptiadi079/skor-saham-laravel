@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { AnalysisResult, HistoryEntry } from '@/types';
+import { SECTORS, DEFAULT_SECTOR } from '@/lib/sectors';
 import GlassCard from '@/Components/GlassCard';
 import ScoreGauge from '@/Components/charts/ScoreGauge';
 import SubScoreBarChart from '@/Components/charts/SubScoreBarChart';
@@ -16,7 +18,7 @@ interface ResultPanelProps {
     result: AnalysisResult;
     savedAt: number | null;
     inWatchlist: boolean;
-    onAddWatchlist: () => void;
+    onAddWatchlist: (sector: string) => void;
     trendEntries: HistoryEntry[];
 }
 
@@ -38,6 +40,7 @@ function NoteList({ notes, delayBase = 0 }: { notes: string[]; delayBase?: numbe
 }
 
 export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchlist, trendEntries }: ResultPanelProps) {
+    const [sector, setSector] = useState<string>(DEFAULT_SECTOR);
     const when = new Date(savedAt || result.generatedAt);
     const isBearish = (result.trading.score ?? 0) <= -0.5 || (result.longterm.score ?? 0) <= -0.5;
 
@@ -83,19 +86,35 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                 </GlassCard>
             </div>
 
-            <button
-                type="button"
-                onClick={onAddWatchlist}
-                disabled={inWatchlist}
-                className={`mt-4 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-transform hover:scale-105 active:scale-95 disabled:hover:scale-100 ${
-                    inWatchlist
-                        ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
-                        : 'border-white/15 bg-white/5 text-slate-200 hover:border-white/30'
-                }`}
-            >
-                <StarIcon filled={inWatchlist} className="h-4 w-4" />
-                {inWatchlist ? 'Ada di watchlist' : 'Tambah ke watchlist'}
-            </button>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+                {!inWatchlist && (
+                    <select
+                        value={sector}
+                        onChange={(e) => setSector(e.target.value)}
+                        className="rounded-xl border border-white/15 bg-white/5 px-2.5 py-2 text-sm text-slate-300"
+                        title="Sektor untuk pengelompokan watchlist"
+                    >
+                        {SECTORS.map((s) => (
+                            <option key={s} value={s} className="bg-slate-800 text-slate-200">
+                                {s}
+                            </option>
+                        ))}
+                    </select>
+                )}
+                <button
+                    type="button"
+                    onClick={() => onAddWatchlist(sector)}
+                    disabled={inWatchlist}
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-transform hover:scale-105 active:scale-95 disabled:hover:scale-100 ${
+                        inWatchlist
+                            ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
+                            : 'border-white/15 bg-white/5 text-slate-200 hover:border-white/30'
+                    }`}
+                >
+                    <StarIcon filled={inWatchlist} className="h-4 w-4" />
+                    {inWatchlist ? 'Ada di watchlist' : 'Tambah ke watchlist'}
+                </button>
+            </div>
 
             <div className="mt-5">
                 <h3 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Rincian Sub-skor</h3>

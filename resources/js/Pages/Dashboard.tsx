@@ -106,14 +106,24 @@ export default function Dashboard() {
         [refreshLocalHistory, showResult]
     );
 
-    async function handleAddWatchlist() {
+    async function handleAddWatchlist(sector: string) {
         if (!result) return;
-        await api.addToWatchlist(result.ticker, result.market, result.name);
+        await api.addToWatchlist(result.ticker, result.market, result.name, sector);
         refreshWatchlist();
     }
 
     async function handleRemoveWatchlist(id: number) {
         await api.removeFromWatchlist(id);
+        refreshWatchlist();
+    }
+
+    async function handleToggleFavorite(id: number, next: boolean) {
+        await api.updateWatchlistItem(id, { is_favorite: next });
+        refreshWatchlist();
+    }
+
+    async function handleChangeSector(id: number, sector: string) {
+        await api.updateWatchlistItem(id, { sector });
         refreshWatchlist();
     }
 
@@ -189,7 +199,13 @@ export default function Dashboard() {
 
                 <AccuracyPanel data={accuracy} />
 
-                <WatchlistPanel items={watchlist} onSelect={runAnalyze} onRemove={handleRemoveWatchlist} />
+                <WatchlistPanel
+                    items={watchlist}
+                    onSelect={runAnalyze}
+                    onRemove={handleRemoveWatchlist}
+                    onToggleFavorite={handleToggleFavorite}
+                    onChangeSector={handleChangeSector}
+                />
                 <ScreenerPanel
                     market={screenerMarket}
                     onMarketChange={setScreenerMarket}
