@@ -5,9 +5,11 @@ versi Node.js: skor jangka panjang & trading dari berita, laporan keuangan,
 tren volume, dan transaksi beli/jual insider/pemilik. Mendukung saham **IDX
 (Indonesia)** dan **global**.
 
-Frontend (PWA: HTML, CSS, JS, manifest, service worker) **sama persis**
-dengan versi Node — hanya backend-nya yang di-porting ke Laravel, supaya
-formatnya lebih familiar buat yang sudah biasa pakai Laravel.
+Frontend-nya sudah di-rewrite total dari PWA vanilla JS/CSS ke **React +
+TypeScript via Inertia.js**, dengan tampilan glassmorphism, gradient stat
+card, ikon & chart SVG custom, dan animasi CSS — lihat bagian "Stack &
+tampilan" di bawah. PWA (offline support, installable ke home screen) tetap
+dipertahankan.
 
 ## Yang harus dipahami dulu
 
@@ -56,21 +58,59 @@ app/
     RefreshStockScores.php    php artisan stocks:refresh-scores (isi screener)
     RefreshIpoListings.php    php artisan stocks:refresh-ipo (isi data IPO)
 routes/
+  web.php   '/' -> Inertia::render('Dashboard') (satu halaman, semua interaksi client-side)
   api.php   /api/analyze, /api/watchlist, /api/history, /api/screener, /api/ipo
   console.php  jadwal harian untuk kedua command di atas
+resources/
+  views/app.blade.php       root view Inertia (@vite + @inertia)
+  js/
+    app.tsx                 bootstrap Inertia + registrasi service worker
+    Pages/Dashboard.tsx      satu-satunya halaman: search, stat card, semua panel
+    Components/
+      AppLayout.tsx          background blob glassmorphism + topbar online/offline
+      GlassCard.tsx          panel kaca transparan yang dipakai di mana-mana
+      Icons.tsx              ikon SVG custom (bukan library)
+      charts/                ScoreGauge, SubScoreBarChart, HistoryLineChart (SVG manual)
+      dashboard/             StatCard, SearchForm, ResultPanel, Watchlist/Screener/Ipo/HistoryPanel
+    lib/api.ts, lib/db.ts    fetch wrapper ke /api/*, wrapper IndexedDB (riwayat offline)
+    types.ts                 tipe TypeScript untuk semua payload API
+  css/app.css                Tailwind v4 + keyframe animasi custom
 public/
-  pwa-shell.html, css/, js/, manifest.json, service-worker.js, icons/
+  manifest.json, service-worker.js, icons/   (shell PWA lama sudah dihapus, diganti build Vite)
 ```
+
+## Stack & tampilan
+
+- **Backend**: Laravel 13, SQLite, PHPUnit.
+- **Frontend**: React + TypeScript, dijembatani ke Laravel lewat
+  **Inertia.js** (jadi terasa seperti SPA tanpa reload penuh, tapi routing
+  tetap di Laravel) — bukan lagi HTML/JS vanilla. Build via **Vite**.
+  Styling **Tailwind CSS v4** (utility class, config CSS-first lewat
+  `@theme`, tanpa `tailwind.config.js`).
+- **Desain**: glassmorphism (panel blur transparan + blob warna mengambang
+  di background, lihat `AppLayout.tsx`), gradient stat card di bagian atas
+  dashboard, ikon SVG custom (`Components/Icons.tsx`, bukan dari library
+  ikon pihak ketiga).
+- **Chart**: semua grafik (gauge skor, bar chart rincian sub-skor, line
+  chart tren riwayat) dibuat manual pakai SVG polos di
+  `Components/charts/` — bukan Chart.js/Recharts.
+- **Animasi**: keyframe CSS custom di `resources/css/app.css` —
+  `fade-in-up`, `pop-in`, `row-in`, `slide-in-left` untuk elemen/baris
+  masuk, `page-in` untuk transisi halaman, `pulse-ring` untuk sinyal
+  "perlu perhatian" (skor Strong Sell), `breathe` untuk ikon watermark di
+  stat card, plus micro-interaction hover (`scale`) pakai Tailwind biasa.
 
 ## Menjalankan di lokal
 
 ```
 cp .env.example .env
 composer install
+npm install
 php artisan key:generate
 touch database/database.sqlite
 php artisan migrate
 php artisan db:seed        # isi daftar LQ45/blue-chip untuk screener
+npm run build              # atau: npm run dev (hot reload saat development)
 php artisan serve
 ```
 
@@ -190,3 +230,15 @@ internet normal:
   cara memanggilnya, hanya `range` chart Yahoo yang diperpanjang dari 3
   bulan ke 6 bulan agar cukup data untuk SMA50/MACD), tapi tetap sepadan
   untuk di-smoke-test sekali di lokal.
+- **`Dockerfile`** — sudah diubah jadi multi-stage (stage Node untuk build
+  Vite, stage PHP untuk runtime) supaya deploy tetap jalan dengan frontend
+  baru. `docker build` **belum sempat dicoba** di sesi ini (docker daemon
+  tidak tersedia di sandbox) — sebelum deploy ke Render, jalankan `docker
+  build .` sekali secara lokal untuk memastikan tidak ada typo/step yang
+  meleset.
+
+Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
+eksternal): migrasi database, seluruh 24 test PHPUnit, `npm run build`
+(Vite + TypeScript type-check bersih), dan server `php artisan serve` —
+halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
+`/api/*` merespons normal.

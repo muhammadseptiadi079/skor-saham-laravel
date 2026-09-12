@@ -1,9 +1,11 @@
-const CACHE_NAME = 'skor-saham-v1';
+// v2: the frontend moved from static /css/style.css + /js/app.js to a Vite-built React bundle
+// with hashed filenames that change every build, so those can't be listed here up front. This
+// still caches the app shell route itself; the fetch handler below opportunistically caches
+// whatever hashed JS/CSS/font files get requested on first visit (cache-first with network
+// fallback), so a repeat offline visit still finds them.
+const CACHE_NAME = 'skor-saham-v2';
 const APP_SHELL = [
   '/',
-  '/css/style.css',
-  '/js/app.js',
-  '/js/db.js',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png'

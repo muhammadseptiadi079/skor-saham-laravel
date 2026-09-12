@@ -1,3 +1,13 @@
+# Frontend is React/TypeScript built by Vite (see resources/js) — built in its own stage so the
+# final image doesn't need Node installed at runtime.
+FROM node:22-slim AS frontend
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
+COPY vite.config.js tsconfig.json ./
+COPY resources resources
+RUN npm run build
+
 FROM php:8.3-cli
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -9,6 +19,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 COPY . .
+COPY --from=frontend /app/public/build public/build
 
 RUN cp .env.example .env \
     && composer install --no-dev --optimize-autoloader --no-interaction \
