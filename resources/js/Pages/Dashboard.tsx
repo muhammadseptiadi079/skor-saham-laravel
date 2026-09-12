@@ -13,6 +13,7 @@ import AppLayout from '@/Components/AppLayout';
 import StatCard from '@/Components/dashboard/StatCard';
 import SearchForm from '@/Components/dashboard/SearchForm';
 import ResultPanel from '@/Components/dashboard/ResultPanel';
+import ManualNewsPanel from '@/Components/dashboard/ManualNewsPanel';
 import WatchlistPanel from '@/Components/dashboard/WatchlistPanel';
 import ScreenerPanel from '@/Components/dashboard/ScreenerPanel';
 import IpoPanel from '@/Components/dashboard/IpoPanel';
@@ -213,6 +214,8 @@ export default function Dashboard() {
                         trendEntries={resultTrend}
                     />
                 )}
+
+                <ManualNewsPanel defaultTicker={result?.ticker} defaultMarket={result?.market} />
 
                 <AccuracyPanel data={accuracy} />
 

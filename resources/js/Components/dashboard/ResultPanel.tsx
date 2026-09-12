@@ -144,18 +144,25 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                     <NoteList notes={result.subScores.news.notes} />
                     {result.subScores.news.topArticles.length > 0 && (
                         <ul className="mt-2 space-y-1 border-t border-white/10 pt-2">
-                            {result.subScores.news.topArticles.map((a) => (
-                                <li key={a.url ?? a.title} className="text-xs">
-                                    <a
-                                        href={a.url ?? '#'}
-                                        target="_blank"
-                                        rel="noopener"
-                                        className="text-sky-300 hover:text-sky-200 hover:underline"
-                                    >
+                            {result.subScores.news.topArticles.map((a) =>
+                                a.url ? (
+                                    <li key={a.url} className="text-xs">
+                                        <a
+                                            href={a.url}
+                                            target="_blank"
+                                            rel="noopener"
+                                            className="text-sky-300 hover:text-sky-200 hover:underline"
+                                        >
+                                            {a.title}
+                                        </a>
+                                    </li>
+                                ) : (
+                                    <li key={a.title} className="text-xs text-slate-300">
                                         {a.title}
-                                    </a>
-                                </li>
-                            ))}
+                                        {a.source && <span className="text-slate-500"> — {a.source}</span>}
+                                    </li>
+                                )
+                            )}
                         </ul>
                     )}
                 </GlassCard>

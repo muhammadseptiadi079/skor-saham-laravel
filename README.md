@@ -363,6 +363,34 @@ Lima tambahan lagi (round keenam, masih rule-based/tanpa ML):
   arah (bisa kabar baik atau buruk), cuma penanda "ada sesuatu, cek
   sendiri isinya".
 
+## Input Berita Manual (ketik atau screenshot)
+
+Panel "Input Berita Manual" di dashboard membiarkan user menambahkan berita
+yang tidak ke-detect otomatis (misal dilihat di Stockbit, grup WhatsApp, atau
+aplikasi lain) — diketik langsung, atau upload screenshot yang teksnya
+diekstrak lewat OCR. Ditangani oleh `App\Http\Controllers\ManualNewsController`
+(`/api/news/manual`):
+
+- **Ketik teks** — langsung dinilai lewat kamus sentimen yang sama dengan
+  berita otomatis (`SentimentService`), termasuk menampilkan kata kunci mana
+  yang bikin skornya positif/negatif (transparan, bukan black box).
+- **Upload screenshot** — teksnya diekstrak pakai **Tesseract OCR**
+  (`thiagoalessio/tesseract_ocr`, self-hosted & gratis — bukan API OCR
+  berbayar seperti Google/Azure Vision, jadi tidak butuh API key atau
+  signup). Butuh binary `tesseract-ocr` ter-install di server (sudah
+  ditambahkan ke `Dockerfile`); kalau tidak ada, endpoint balas error yang
+  jelas ("OCR tidak tersedia di server ini") alih-alih crash.
+- Item yang disimpan (`manual_news_items`) ikut digabung ke sub-skor berita
+  ticker terkait selama **14 hari** ke depan (`ManualNewsService`), lalu
+  otomatis berhenti dihitung — supaya berita lama tidak diam-diam terus
+  memengaruhi analisis berbulan-bulan kemudian.
+- Sudah dicoba end-to-end di sesi pengembangan ini (`tesseract` benar-benar
+  ter-install & dites, bukan cuma dibaca dari dokumentasi) — screenshot
+  teks "Saham ANTM anjlok setelah rugi..." berhasil diekstrak persis dan
+  dinilai sangat negatif. Test OCR (`ImageTextExtractionServiceTest`)
+  otomatis skip di mesin yang tidak punya `tesseract-ocr` ter-install,
+  supaya suite test tetap portable.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -468,7 +496,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 108 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 127 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

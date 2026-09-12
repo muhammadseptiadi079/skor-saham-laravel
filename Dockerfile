@@ -11,7 +11,7 @@ RUN npm run build
 FROM php:8.3-cli
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        unzip git libzip-dev libsqlite3-dev \
+        unzip git libzip-dev libsqlite3-dev tesseract-ocr tesseract-ocr-ind \
     && docker-php-ext-install pdo pdo_sqlite zip \
     && rm -rf /var/lib/apt/lists/*
 

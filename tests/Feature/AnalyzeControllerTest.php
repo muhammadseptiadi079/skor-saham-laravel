@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ManualNewsItem;
 use App\Models\WatchlistItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -155,6 +156,42 @@ class AnalyzeControllerTest extends TestCase
         $response->assertOk();
         $notes = implode(' ', $response->json('subScores.fundamentals.notes'));
         $this->assertStringContainsString('kebakaran hutan', $notes);
+    }
+
+    public function test_manual_news_is_merged_into_the_news_sub_score(): void
+    {
+        ManualNewsItem::create([
+            'ticker' => 'KAEF', 'market' => 'idx', 'text' => 'Laba KAEF melonjak tahun ini',
+            'source' => 'typed', 'sentiment_score' => 1.0,
+        ]);
+
+        Http::fake([
+            'https://query1.finance.yahoo.com/v8/finance/chart/*' => Http::response([
+                'chart' => ['result' => [[
+                    'meta' => ['currency' => 'IDR', 'symbol' => 'KAEF.JK'],
+                    'timestamp' => [],
+                    'indicators' => ['quote' => [['close' => [], 'volume' => []]]],
+                ]]],
+            ]),
+            'https://query1.finance.yahoo.com/v10/finance/quoteSummary/*' => Http::response([
+                'quoteSummary' => ['result' => [['financialData' => [], 'defaultKeyStatistics' => [], 'summaryDetail' => []]]],
+            ]),
+            // No automatic news at all -> the manual item should be the only article scored.
+            'https://news.google.com/rss/search*' => Http::response(
+                '<?xml version="1.0"?><rss><channel></channel></rss>',
+                200,
+                ['Content-Type' => 'application/xml']
+            ),
+        ]);
+
+        $response = $this->getJson('/api/analyze?ticker=KAEF&market=idx');
+
+        $response->assertOk();
+        $this->assertEquals(1.0, $response->json('subScores.news.score'));
+        $topArticles = $response->json('subScores.news.topArticles');
+        $this->assertSame('Laba KAEF melonjak tahun ini', $topArticles[0]['title']);
+        $this->assertSame('Input manual', $topArticles[0]['source']);
+        $this->assertNull($topArticles[0]['url']);
     }
 
     public function test_analyze_global_returns_full_analysis(): void

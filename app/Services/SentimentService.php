@@ -50,6 +50,18 @@ class SentimentService
         return max(-1, min(1, $score));
     }
 
+    // Which words actually drove a score — same transparency principle as every other note in
+    // this app (never just a number, always the reason behind it).
+    public function matchedKeywords(string $title): array
+    {
+        $text = mb_strtolower($title);
+
+        return [
+            'positive' => array_values(array_filter(self::POSITIVE_WORDS, fn ($w) => str_contains($text, $w))),
+            'negative' => array_values(array_filter(self::NEGATIVE_WORDS, fn ($w) => str_contains($text, $w))),
+        ];
+    }
+
     public function scoreArticles(array $articles): array
     {
         if (count($articles) === 0) {

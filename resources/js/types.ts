@@ -152,3 +152,14 @@ export interface CachedAnalysis {
     savedAt: number;
     analysis: AnalysisResult;
 }
+
+export interface ManualNewsItem {
+    id: number;
+    ticker: string;
+    market: Market;
+    text: string;
+    source: 'typed' | 'screenshot';
+    sentimentScore: number;
+    matchedKeywords: { positive: string[]; negative: string[] };
+    createdAt: string;
+}

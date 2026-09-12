@@ -7,6 +7,7 @@ import type {
     ApiError,
     HistoryEntry,
     IpoListing,
+    ManualNewsItem,
     Market,
     ScreenerResponse,
     WatchlistItem,
@@ -101,4 +102,29 @@ export function fetchIpoListings(market?: Market): Promise<IpoListing[]> {
 export function fetchAccuracy(market?: Market): Promise<AccuracyResponse> {
     const suffix = market ? `?market=${market}` : '';
     return fetch(`/api/accuracy${suffix}`).then((res) => asJson<AccuracyResponse>(res));
+}
+
+export function fetchManualNews(ticker: string, market: Market): Promise<ManualNewsItem[]> {
+    const params = new URLSearchParams({ ticker, market });
+    return fetch(`/api/news/manual?${params}`).then((res) => asJson<ManualNewsItem[]>(res));
+}
+
+export function submitManualNewsText(ticker: string, market: Market, text: string): Promise<ManualNewsItem> {
+    return fetch('/api/news/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker, market, text }),
+    }).then((res) => asJson<ManualNewsItem>(res));
+}
+
+export function submitManualNewsImage(ticker: string, market: Market, image: File): Promise<ManualNewsItem> {
+    const form = new FormData();
+    form.set('ticker', ticker);
+    form.set('market', market);
+    form.set('image', image);
+    return fetch('/api/news/manual', { method: 'POST', body: form }).then((res) => asJson<ManualNewsItem>(res));
+}
+
+export function removeManualNews(id: number): Promise<void> {
+    return fetch(`/api/news/manual/${id}`, { method: 'DELETE' }).then(() => undefined);
 }

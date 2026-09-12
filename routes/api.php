@@ -4,6 +4,7 @@ use App\Http\Controllers\AccuracyController;
 use App\Http\Controllers\AnalyzeController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\IpoController;
+use App\Http\Controllers\ManualNewsController;
 use App\Http\Controllers\ScreenerController;
 use App\Http\Controllers\WatchlistController;
 use Illuminate\Http\Request;
@@ -28,3 +29,7 @@ Route::get('/screener', [ScreenerController::class, 'index']);
 Route::get('/ipo', [IpoController::class, 'index']);
 
 Route::get('/accuracy', [AccuracyController::class, 'index']);
+
+Route::get('/news/manual', [ManualNewsController::class, 'index']);
+Route::post('/news/manual', [ManualNewsController::class, 'store']);
+Route::delete('/news/manual/{manualNewsItem}', [ManualNewsController::class, 'destroy']);

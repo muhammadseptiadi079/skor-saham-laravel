@@ -20,6 +20,7 @@ class StockAnalysisService
         private SectorValuationService $sectorValuation,
         private NationalThemeService $nationalThemes,
         private NewsVolumeService $newsVolume,
+        private ManualNewsService $manualNews,
     ) {}
 
     public function analyze(string $ticker, string $market): array
@@ -71,11 +72,12 @@ class StockAnalysisService
         $newsArticles = $this->safe(fn () => $this->alphaVantage->getNewsSentiment($ticker)) ?? [];
         $priceSeries = $this->safe(fn () => $this->alphaVantage->getDailyTimeSeries($ticker));
         $insiderTx = $this->safe(fn () => $this->secEdgar->getInsiderTransactions($ticker));
+        $manualArticles = $this->safe(fn () => $this->manualNews->recentArticlesFor($ticker, 'global')) ?? [];
 
         return [
             'name' => $overview['name'] ?? null,
             'fundamentals' => $overview,
-            'newsArticles' => $newsArticles,
+            'newsArticles' => [...$manualArticles, ...$newsArticles],
             'priceSeries' => $priceSeries,
             'ownershipTransactions' => $insiderTx,
             'currency' => 'USD',
@@ -94,11 +96,12 @@ class StockAnalysisService
         $insiderTx = $this->safe(fn () => $this->yahooFinance->getInsiderTransactions($ticker));
 
         $scored = $this->sentiment->scoreArticles($newsRaw);
+        $manualArticles = $this->safe(fn () => $this->manualNews->recentArticlesFor($ticker, 'idx')) ?? [];
 
         return [
             'name' => $chart['name'] ?? $this->yahooFinance->normalizeIdxTicker($ticker),
             'fundamentals' => $fundamentals,
-            'newsArticles' => $scored,
+            'newsArticles' => [...$manualArticles, ...$scored],
             'priceSeries' => $chart['series'] ?? null,
             'ownershipTransactions' => $insiderTx,
             'currency' => 'IDR',
