@@ -464,4 +464,32 @@ class ScoringEngineTest extends TestCase
 
         $this->assertStringNotContainsString('pengalihan kepemilikan', implode(' ', $result['subScores']['ownership']['notes']));
     }
+
+    public function test_active_national_theme_shown_as_context_note_without_affecting_score(): void
+    {
+        $activeThemes = [['note' => 'Lagi ramai berita kebakaran hutan/kabut asap — ...']];
+
+        $withoutTheme = $this->engine->buildAnalysis(['pegRatio' => 0.8], null, null, null, 'IDR');
+        $withTheme = $this->engine->buildAnalysis(['pegRatio' => 0.8], null, null, null, 'IDR', null, null, null, $activeThemes);
+
+        $this->assertSame($withoutTheme['subScores']['fundamentals']['score'], $withTheme['subScores']['fundamentals']['score']);
+        $this->assertStringContainsString('kebakaran hutan', implode(' ', $withTheme['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_active_national_theme_shown_even_when_fundamentals_data_unavailable(): void
+    {
+        $activeThemes = [['note' => 'Lagi ramai berita kemarau panjang/kekeringan — ...']];
+
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR', null, null, null, $activeThemes);
+
+        $this->assertNull($result['subScores']['fundamentals']['score']);
+        $this->assertStringContainsString('kemarau panjang', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_no_national_theme_note_when_no_active_themes(): void
+    {
+        $result = $this->engine->buildAnalysis(['pegRatio' => 0.8], null, null, null, 'IDR');
+
+        $this->assertStringNotContainsString('Lagi ramai berita', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
 }

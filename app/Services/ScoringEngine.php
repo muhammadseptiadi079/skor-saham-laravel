@@ -29,9 +29,10 @@ class ScoringEngine
         ?array $benchmarkSeries = null,
         ?string $benchmarkLabel = null,
         ?array $sectorContext = null,
+        array $activeThemes = [],
     ): array {
         $currentPrice = $priceSeries[0]['close'] ?? null;
-        $fundamentalResult = $this->scoreFundamentals($fundamentals, $currentPrice, $currency, $sectorContext);
+        $fundamentalResult = $this->scoreFundamentals($fundamentals, $currentPrice, $currency, $sectorContext, $activeThemes);
         $momentumResult = $this->scoreMomentum($priceSeries, $currency, $benchmarkSeries, $benchmarkLabel);
         $longTermTrendResult = $this->scoreLongTermTrend($priceSeries);
         $ownershipResult = $this->scoreOwnership($ownershipTransactions, $currency, $fundamentals['marketCap'] ?? null);
@@ -77,15 +78,17 @@ class ScoringEngine
         ];
     }
 
-    private function scoreFundamentals(?array $f, ?float $currentPrice, string $currency, ?array $sectorContext = null): array
+    private function scoreFundamentals(?array $f, ?float $currentPrice, string $currency, ?array $sectorContext = null, array $activeThemes = []): array
     {
+        $themeNotes = $this->nationalThemeNotes($activeThemes);
+
         if (! $f) {
-            return ['score' => null, 'notes' => ['Data fundamental tidak tersedia.']];
+            return ['score' => null, 'notes' => [...$themeNotes, 'Data fundamental tidak tersedia.']];
         }
 
         $notes = [];
         $parts = [];
-        $contextNotes = $this->fundamentalContextNotes($f, $sectorContext);
+        $contextNotes = [...$this->fundamentalContextNotes($f, $sectorContext), ...$themeNotes];
 
         if ($this->isNum($f['revenueGrowthYoy'] ?? null)) {
             $v = $f['revenueGrowthYoy'];
@@ -207,6 +210,13 @@ class ScoringEngine
         }
 
         return $notes;
+    }
+
+    // Precomputed by NationalThemeService — kept out of ScoringEngine so this class stays free of
+    // news-fetching/caching concerns, same pattern as $sectorContext.
+    private function nationalThemeNotes(array $activeThemes): array
+    {
+        return array_map(fn ($theme) => $theme['note'], $activeThemes);
     }
 
     private function pricePerShare(float $v, string $currency): string

@@ -301,6 +301,33 @@ Empat perubahan lagi (round keempat, masih rule-based/tanpa ML):
   berhenti di "ini kejadian besar, pelajari sendiri" alih-alih berpura-pura
   tahu rekam jejaknya.
 
+Satu tambahan lagi (round kelima, masih rule-based/tanpa ML — **ini yang
+paling spekulatif dari semua fitur di aplikasi ini**, baca catatan
+kejujurannya):
+
+- **Tema nasional/makro** (`NationalThemeService`) — mendeteksi isu yang
+  lagi ramai diberitakan (kebakaran hutan/kabut asap, kemarau
+  panjang/kekeringan, kenaikan harga komoditas batu bara/nikel/CPO) lewat
+  pencarian umum di Google News RSS (bukan pencarian per-ticker seperti
+  berita saham biasa), lalu dicocokkan ke sektor watchlist yang
+  kemungkinan terdampak (mis. kebakaran hutan/asap → sektor Kesehatan
+  & Konsumer/Ritel, karena permintaan masker/obat pernapasan/air purifier
+  biasanya naik). Kalau tema itu lagi aktif (≥3 berita ditemukan, di-cache
+  6 jam) dan sektor watchlist-nya cocok, muncul catatan tematik di
+  sub-skor fundamental. **Cuma untuk saham IDX** yang sudah ada di
+  watchlist dengan sektor terisi (pakai fitur sektor watchlist).
+  - **Kenapa ini cuma catatan, bukan skor**: pemetaan tema→sektor di sini
+    adalah tebakan manual berdasarkan pola umum, bukan hubungan
+    sebab-akibat yang terverifikasi — "banyak berita soal X" cuma
+    menunjukkan topik X sedang ramai dibicarakan, bukan bukti bahwa
+    saham tertentu di sektor itu benar-benar terkena dampaknya (apalagi
+    kalau perusahaannya tidak benar-benar berjualan produk yang relevan,
+    misal rumah sakit di sektor Kesehatan tidak otomatis diuntungkan
+    kabut asap seperti produsen masker). Menjadikannya bagian dari skor
+    numerik akan memberi kesan presisi yang tidak didukung datanya —
+    jadi tetap murni informasi "cek sendiri", konsisten dengan pendekatan
+    catatan konteks lain (sektor, valuasi relatif sektor, dsb).
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -406,7 +433,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 81 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 92 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

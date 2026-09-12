@@ -16,12 +16,22 @@ class SectorValuationService
 {
     private const MIN_PEERS = 2;
 
+    // The user-assigned sector for a ticker, or null if it's not in the watchlist (or has no
+    // sector assigned yet). Also used by NationalThemeService to decide which national/macro news
+    // themes are even worth checking for a given analysis.
+    public function sectorFor(string $ticker, string $market): ?string
+    {
+        $sector = WatchlistItem::where('ticker', strtoupper($ticker))->where('market', $market)->value('sector');
+
+        return ($sector && $sector !== Sectors::DEFAULT) ? $sector : null;
+    }
+
     public function averagesFor(string $ticker, string $market): ?array
     {
         $ticker = strtoupper($ticker);
 
-        $sector = WatchlistItem::where('ticker', $ticker)->where('market', $market)->value('sector');
-        if (! $sector || $sector === Sectors::DEFAULT) {
+        $sector = $this->sectorFor($ticker, $market);
+        if (! $sector) {
             return null;
         }
 

@@ -18,12 +18,15 @@ class StockAnalysisService
         private SecEdgarService $secEdgar,
         private ScoringEngine $scoringEngine,
         private SectorValuationService $sectorValuation,
+        private NationalThemeService $nationalThemes,
     ) {}
 
     public function analyze(string $ticker, string $market): array
     {
         $data = $market === 'idx' ? $this->analyzeIdx($ticker) : $this->analyzeGlobal($ticker);
         $sectorContext = $this->safe(fn () => $this->sectorValuation->averagesFor($ticker, $market));
+        $sector = $this->safe(fn () => $this->sectorValuation->sectorFor($ticker, $market));
+        $activeThemes = $this->safe(fn () => $this->nationalThemes->activeThemesForSector($sector, $market)) ?? [];
 
         $analysis = $this->scoringEngine->buildAnalysis(
             $data['fundamentals'],
@@ -34,6 +37,7 @@ class StockAnalysisService
             $data['benchmarkSeries'],
             $data['benchmarkLabel'],
             $sectorContext,
+            $activeThemes,
         );
 
         return array_merge([

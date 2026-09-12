@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\WatchlistItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -105,6 +106,55 @@ class AnalyzeControllerTest extends TestCase
         // relative-momentum note should be present end-to-end, not just at the unit level.
         $momentumNotes = implode(' ', $response->json('subScores.momentum.notes'));
         $this->assertStringContainsString('IHSG', $momentumNotes);
+    }
+
+    public function test_national_theme_note_appears_when_watchlist_sector_matches_and_news_is_active(): void
+    {
+        WatchlistItem::create(['ticker' => 'KAEF', 'market' => 'idx', 'sector' => 'Kesehatan']);
+
+        $timestamps = [];
+        $closes = [];
+        $volumes = [];
+        $base = 1_000_000_000;
+        for ($i = 0; $i < 25; $i++) {
+            $timestamps[] = $base + $i * 86400;
+            $closes[] = 1500 + $i * 5;
+            $volumes[] = 500_000;
+        }
+
+        Http::fake([
+            'https://query1.finance.yahoo.com/v8/finance/chart/*' => Http::response([
+                'chart' => ['result' => [[
+                    'meta' => ['currency' => 'IDR', 'symbol' => 'KAEF.JK'],
+                    'timestamp' => $timestamps,
+                    'indicators' => ['quote' => [['close' => $closes, 'volume' => $volumes]]],
+                ]]],
+            ]),
+            'https://query1.finance.yahoo.com/v10/finance/quoteSummary/*' => Http::response([
+                'quoteSummary' => ['result' => [['financialData' => [], 'defaultKeyStatistics' => [], 'summaryDetail' => []]]],
+            ]),
+            'https://news.google.com/rss/search*' => function ($request) {
+                // The theme query gets 5 hits (active); the company-specific query gets none.
+                $count = str_contains(urldecode($request->url()), 'kebakaran hutan') ? 5 : 0;
+                $items = str_repeat(
+                    '<item><title>Berita</title><link>https://example.com/a</link>'.
+                    '<source>Detik</source><pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate></item>',
+                    $count
+                );
+
+                return Http::response(
+                    "<?xml version=\"1.0\"?><rss><channel>{$items}</channel></rss>",
+                    200,
+                    ['Content-Type' => 'application/xml']
+                );
+            },
+        ]);
+
+        $response = $this->getJson('/api/analyze?ticker=KAEF&market=idx');
+
+        $response->assertOk();
+        $notes = implode(' ', $response->json('subScores.fundamentals.notes'));
+        $this->assertStringContainsString('kebakaran hutan', $notes);
     }
 
     public function test_analyze_global_returns_full_analysis(): void
