@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AnalysisHistory;
 use App\Services\SubScoreAccuracyService;
+use App\Support\Sectors;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
@@ -21,12 +22,17 @@ class AccuracyController extends Controller
         $market = $request->query('market');
         $subScoreAccuracy = $this->subScoreAccuracy->report($market);
 
-        $query = AnalysisHistory::query()->whereNotNull('outcome_correct');
+        $query = AnalysisHistory::query()
+            ->whereNotNull('outcome_correct')
+            ->leftJoin('watchlist_items', function ($join) {
+                $join->on('analysis_history.ticker', '=', 'watchlist_items.ticker')
+                    ->on('analysis_history.market', '=', 'watchlist_items.market');
+            });
         if ($market) {
-            $query->where('market', $market);
+            $query->where('analysis_history.market', $market);
         }
 
-        $graded = $query->get(['trading_label', 'outcome_correct', 'forward_return', 'market_regime']);
+        $graded = $query->get(['trading_label', 'outcome_correct', 'forward_return', 'market_regime', 'sector']);
 
         if ($graded->isEmpty()) {
             return response()->json([
@@ -35,6 +41,7 @@ class AccuracyController extends Controller
                 'avgForwardReturnPct' => null,
                 'byLabel' => [],
                 'byMarketRegime' => [],
+                'byWatchlistSector' => [],
                 'subScoreAccuracy' => $subScoreAccuracy,
             ]);
         }
@@ -46,6 +53,14 @@ class AccuracyController extends Controller
             ->map(fn ($rows, $regime) => $this->summarize($rows, self::REGIME_LABELS[$regime] ?? $regime))
             ->values();
 
+        // Excludes rows whose ticker isn't in the watchlist (null sector) or has no sector assigned
+        // yet ("Lainnya") — neither is a meaningful group to report accuracy for.
+        $byWatchlistSector = $graded->whereNotNull('sector')
+            ->where('sector', '!=', Sectors::DEFAULT)
+            ->groupBy('sector')
+            ->map(fn ($rows, $sector) => $this->summarize($rows, $sector))
+            ->values();
+
         $totalCorrect = $graded->where('outcome_correct', true)->count();
 
         return response()->json([
@@ -54,6 +69,7 @@ class AccuracyController extends Controller
             'avgForwardReturnPct' => round($graded->avg('forward_return') * 100, 2),
             'byLabel' => $byLabel,
             'byMarketRegime' => $byMarketRegime,
+            'byWatchlistSector' => $byWatchlistSector,
             'subScoreAccuracy' => $subScoreAccuracy,
         ]);
     }

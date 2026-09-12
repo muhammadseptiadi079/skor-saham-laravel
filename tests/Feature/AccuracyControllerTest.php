@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AnalysisHistory;
+use App\Models\WatchlistItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -84,6 +85,42 @@ class AccuracyControllerTest extends TestCase
         $this->assertSame(1, $byRegime['Pasar Turun']['sampleSize']);
         $this->assertEquals(0.0, $byRegime['Pasar Turun']['accuracy']);
         $this->assertCount(2, $byRegime); // the null-regime row must not appear as a group
+    }
+
+    public function test_aggregates_accuracy_by_watchlist_sector(): void
+    {
+        WatchlistItem::create(['ticker' => 'ANTM', 'market' => 'idx', 'sector' => 'Pertambangan']);
+        WatchlistItem::create(['ticker' => 'PTBA', 'market' => 'idx', 'sector' => 'Pertambangan']);
+        WatchlistItem::create(['ticker' => 'BBCA', 'market' => 'idx', 'sector' => 'Lainnya']);
+
+        AnalysisHistory::create([
+            'ticker' => 'ANTM', 'market' => 'idx', 'trading_label' => 'Buy',
+            'outcome_correct' => true, 'forward_return' => 0.08, 'generated_at' => now(),
+        ]);
+        AnalysisHistory::create([
+            'ticker' => 'PTBA', 'market' => 'idx', 'trading_label' => 'Buy',
+            'outcome_correct' => false, 'forward_return' => -0.02, 'generated_at' => now(),
+        ]);
+        // Sector "Lainnya" (no real sector assigned) must be excluded from the breakdown.
+        AnalysisHistory::create([
+            'ticker' => 'BBCA', 'market' => 'idx', 'trading_label' => 'Buy',
+            'outcome_correct' => true, 'forward_return' => 0.03, 'generated_at' => now(),
+        ]);
+        // Not in the watchlist at all -> also excluded, but still counted in overall sampleSize.
+        AnalysisHistory::create([
+            'ticker' => 'ZZZZ', 'market' => 'idx', 'trading_label' => 'Buy',
+            'outcome_correct' => true, 'forward_return' => 0.01, 'generated_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/accuracy');
+
+        $response->assertOk();
+        $response->assertJsonPath('sampleSize', 4);
+
+        $bySector = collect($response->json('byWatchlistSector'))->keyBy('label');
+        $this->assertSame(2, $bySector['Pertambangan']['sampleSize']);
+        $this->assertEquals(50.0, $bySector['Pertambangan']['accuracy']);
+        $this->assertCount(1, $bySector); // "Lainnya" and the untracked ticker must not appear
     }
 
     public function test_filters_by_market(): void

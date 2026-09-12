@@ -492,4 +492,117 @@ class ScoringEngineTest extends TestCase
 
         $this->assertStringNotContainsString('Lagi ramai berita', implode(' ', $result['subScores']['fundamentals']['notes']));
     }
+
+    public function test_high_beta_shown_as_more_volatile_context_note(): void
+    {
+        $result = $this->engine->buildAnalysis(['beta' => 1.5], null, null, null, 'USD');
+
+        $notes = implode(' ', $result['subScores']['fundamentals']['notes']);
+        $this->assertStringContainsString('Beta 1.50', $notes);
+        $this->assertStringContainsString('lebih volatile dari pasar', $notes);
+    }
+
+    public function test_low_beta_shown_as_defensive_context_note(): void
+    {
+        $result = $this->engine->buildAnalysis(['beta' => 0.5], null, null, null, 'USD');
+
+        $this->assertStringContainsString('defensif', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_52_week_position_shown_near_high(): void
+    {
+        $series = [['close' => 115, 'volume' => 1000]];
+
+        $result = $this->engine->buildAnalysis(
+            ['fiftyTwoWeekLow' => 80, 'fiftyTwoWeekHigh' => 120], null, $series, null, 'USD'
+        );
+
+        $notes = implode(' ', $result['subScores']['fundamentals']['notes']);
+        $this->assertStringContainsString('87.5%', $notes);
+        $this->assertStringContainsString('dekat titik tertinggi 52 minggu', $notes);
+    }
+
+    public function test_52_week_position_shown_near_low(): void
+    {
+        $series = [['close' => 85, 'volume' => 1000]];
+
+        $result = $this->engine->buildAnalysis(
+            ['fiftyTwoWeekLow' => 80, 'fiftyTwoWeekHigh' => 120], null, $series, null, 'USD'
+        );
+
+        $this->assertStringContainsString('dekat titik terendah 52 minggu', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_historical_volatility_note_added_when_enough_price_history(): void
+    {
+        $chrono = [];
+        $price = 100;
+        for ($i = 0; $i < 20; $i++) {
+            $price += $i % 2 === 0 ? 3 : -2;
+            $chrono[] = $price;
+        }
+        $series = [];
+        foreach (array_reverse($chrono) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1_000_000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertStringContainsString('Volatilitas historis', implode(' ', $result['subScores']['momentum']['notes']));
+    }
+
+    public function test_ara_arb_warning_shown_for_large_single_day_move_on_idx(): void
+    {
+        // 20 days flat at 1000, except today's close jumped to 1200 (+20%) — band for a
+        // Rp200-5000 previous close is 25%, and 20% eats 80% of that band (>= the 70% trigger).
+        $series = array_fill(0, 20, ['close' => 1000, 'volume' => 5_000_000]);
+        $series[0] = ['close' => 1200, 'volume' => 5_000_000];
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $notes = implode(' ', $result['subScores']['momentum']['notes']);
+        $this->assertStringContainsString('ARA (auto reject atas)', $notes);
+    }
+
+    public function test_ara_arb_warning_not_shown_for_small_move(): void
+    {
+        $series = array_fill(0, 20, ['close' => 1000, 'volume' => 5_000_000]);
+        $series[0] = ['close' => 1010, 'volume' => 5_000_000];
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $notes = implode(' ', $result['subScores']['momentum']['notes']);
+        $this->assertStringNotContainsString('auto reject', $notes);
+    }
+
+    public function test_ara_arb_warning_never_shown_for_global_market(): void
+    {
+        $series = array_fill(0, 20, ['close' => 1000, 'volume' => 5_000_000]);
+        $series[0] = ['close' => 1200, 'volume' => 5_000_000];
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'USD');
+
+        $notes = implode(' ', $result['subScores']['momentum']['notes']);
+        $this->assertStringNotContainsString('auto reject', $notes);
+    }
+
+    public function test_news_volume_spike_note_appended_to_news_notes(): void
+    {
+        $articles = [['title' => 'A', 'sentimentScore' => 0.5]];
+
+        $result = $this->engine->buildAnalysis(
+            null, $articles, null, null, 'USD', null, null, null, [], 'Jumlah berita lagi tinggi'
+        );
+
+        $this->assertStringContainsString('Jumlah berita lagi tinggi', implode(' ', $result['subScores']['news']['notes']));
+    }
+
+    public function test_news_volume_spike_note_shown_even_with_no_articles(): void
+    {
+        $result = $this->engine->buildAnalysis(
+            null, [], null, null, 'USD', null, null, null, [], 'Jumlah berita lagi tinggi'
+        );
+
+        $this->assertStringContainsString('Jumlah berita lagi tinggi', implode(' ', $result['subScores']['news']['notes']));
+    }
 }

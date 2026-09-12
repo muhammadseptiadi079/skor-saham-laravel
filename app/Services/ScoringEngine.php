@@ -30,6 +30,7 @@ class ScoringEngine
         ?string $benchmarkLabel = null,
         ?array $sectorContext = null,
         array $activeThemes = [],
+        ?string $newsVolumeNote = null,
     ): array {
         $currentPrice = $priceSeries[0]['close'] ?? null;
         $fundamentalResult = $this->scoreFundamentals($fundamentals, $currentPrice, $currency, $sectorContext, $activeThemes);
@@ -38,7 +39,7 @@ class ScoringEngine
         $ownershipResult = $this->scoreOwnership($ownershipTransactions, $currency, $fundamentals['marketCap'] ?? null);
 
         $newsArticles = $newsArticles ?? [];
-        $newsResult = $this->scoreNews($newsArticles);
+        $newsResult = $this->scoreNews($newsArticles, $newsVolumeNote);
 
         $subScores = [
             'fundamentals' => $fundamentalResult,
@@ -88,7 +89,7 @@ class ScoringEngine
 
         $notes = [];
         $parts = [];
-        $contextNotes = [...$this->fundamentalContextNotes($f, $sectorContext), ...$themeNotes];
+        $contextNotes = [...$this->fundamentalContextNotes($f, $currency, $currentPrice, $sectorContext), ...$themeNotes];
 
         if ($this->isNum($f['revenueGrowthYoy'] ?? null)) {
             $v = $f['revenueGrowthYoy'];
@@ -172,7 +173,7 @@ class ScoringEngine
     // (earnings proximity), or they're too ambiguous on their own to score cleanly (a dividend
     // yield can be a healthy payout or a yield trap from a falling price — the number alone
     // doesn't say which).
-    private function fundamentalContextNotes(array $f, ?array $sectorContext = null): array
+    private function fundamentalContextNotes(array $f, string $currency, ?float $currentPrice = null, ?array $sectorContext = null): array
     {
         $notes = [];
 
@@ -207,6 +208,24 @@ class ScoringEngine
             $notes[] = 'P/E saham ini '.number_format($ownPe, 1)." dibanding rata-rata {$sectorContext['peSampleSize']} saham ".
                 "sektor {$sectorContext['sector']} lain di watchlist kamu (".number_format($avgPe, 1).') — '.
                 "{$arah} {$this->pct(abs($diff))} (pembanding dari watchlist sendiri, sampel kecil — bukan data resmi sektor).";
+        }
+
+        if ($this->isNum($f['beta'] ?? null)) {
+            $beta = $f['beta'];
+            $desc = $beta > 1.2 ? 'lebih volatile dari pasar' : ($beta < 0.8 ? 'kurang volatile dari pasar (defensif)' : 'volatilitasnya mirip pasar');
+            $notes[] = 'Beta '.number_format($beta, 2)." ({$desc})";
+        }
+
+        if ($this->isNum($f['fiftyTwoWeekLow'] ?? null) && $this->isNum($f['fiftyTwoWeekHigh'] ?? null) && $currentPrice) {
+            $low = $f['fiftyTwoWeekLow'];
+            $high = $f['fiftyTwoWeekHigh'];
+            if ($high > $low) {
+                $position = ($currentPrice - $low) / ($high - $low);
+                $posDesc = $position >= 0.85 ? ' — dekat titik tertinggi 52 minggu'
+                    : ($position <= 0.15 ? ' — dekat titik terendah 52 minggu' : '');
+                $notes[] = 'Harga sekarang berada di '.$this->pct(max(0, min(1, $position))).
+                    " dari rentang 52 minggu ({$this->pricePerShare($low, $currency)} - {$this->pricePerShare($high, $currency)}){$posDesc}.";
+            }
         }
 
         return $notes;
@@ -342,7 +361,88 @@ class ScoringEngine
                 ') — sinyal teknikal (RSI/MACD/momentum) kurang bisa diandalkan pada saham dengan volume tipis.';
         }
 
+        $volatilityNote = $this->historicalVolatilityNote($closesChrono);
+        if ($volatilityNote) {
+            $notes[] = $volatilityNote;
+        }
+
+        $araArbNote = $this->araArbWarning($recent[0]['close'] ?? null, $recent[1]['close'] ?? null, $currency);
+        if ($araArbNote) {
+            $notes[] = $araArbNote;
+        }
+
         return ['score' => $finalScore, 'notes' => $notes, 'lowLiquidity' => $lowLiquidity];
+    }
+
+    // Different risk dimension from the liquidity flag above — that's about thin trading volume,
+    // this is about how wildly the price itself swings day to day, independent of volume. A rough
+    // rule-of-thumb classification (annualized stdev of daily returns), not a claim about future
+    // risk.
+    private function historicalVolatilityNote(array $closesChrono): ?string
+    {
+        if (count($closesChrono) < 10) {
+            return null;
+        }
+
+        $returns = [];
+        for ($i = 1; $i < count($closesChrono); $i++) {
+            if ($closesChrono[$i - 1] > 0) {
+                $returns[] = ($closesChrono[$i] - $closesChrono[$i - 1]) / $closesChrono[$i - 1];
+            }
+        }
+        if (count($returns) < 5) {
+            return null;
+        }
+
+        $mean = array_sum($returns) / count($returns);
+        $variance = array_sum(array_map(fn ($r) => ($r - $mean) ** 2, $returns)) / count($returns);
+        $annualizedVol = sqrt($variance) * sqrt(252);
+
+        $desc = $annualizedVol >= 0.5 ? 'tinggi' : ($annualizedVol >= 0.25 ? 'sedang' : 'rendah');
+
+        return 'Volatilitas historis ~'.$this->pct($annualizedVol)." per tahun ({$desc}) — perkiraan seberapa liar harga bergerak, dihitung dari data harga sendiri.";
+    }
+
+    // IDX auto-rejection (ARA/ARB) price-move bands. IDX has revised these percentages more than
+    // once historically (most recently around 2023) — treat this table as "worth checking," not
+    // gospel, and verify against BEI's current official circular before relying on it for real
+    // trading decisions. Table below is the commonly-cited "normal" tiered band.
+    private const ARA_ARB_BANDS = [
+        ['max' => 200, 'pct' => 0.35],
+        ['max' => 5000, 'pct' => 0.25],
+        ['max' => PHP_INT_MAX, 'pct' => 0.20],
+    ];
+
+    // Only fires when the day's move has already eaten a large share of the band (>=70%, an
+    // arbitrary but conservative early-warning threshold) — not on every small daily move.
+    private function araArbWarning(?float $closeNow, ?float $closePrevDay, string $currency): ?string
+    {
+        if ($currency !== 'IDR' || ! $closeNow || ! $closePrevDay || $closePrevDay <= 0) {
+            return null;
+        }
+
+        $band = null;
+        foreach (self::ARA_ARB_BANDS as $b) {
+            if ($closePrevDay <= $b['max']) {
+                $band = $b;
+                break;
+            }
+        }
+        if (! $band) {
+            return null;
+        }
+
+        $change = ($closeNow - $closePrevDay) / $closePrevDay;
+        $proximity = abs($change) / $band['pct'];
+        if ($proximity < 0.7) {
+            return null;
+        }
+
+        $arah = $change >= 0 ? 'ARA (auto reject atas)' : 'ARB (auto reject bawah)';
+
+        return "Harga bergerak {$this->pct(abs($change))} dari penutupan sebelumnya, mendekati potensi batas {$arah} ".
+            "sekitar {$this->pct($band['pct'])} untuk rentang harga ini — persentase ARA/ARB IDX bisa berubah ".
+            'sewaktu-waktu, cek aturan resmi BEI terbaru.';
     }
 
     // A separate, longer window from scoreMomentum() — used only for the "longterm" horizon, so a
@@ -400,10 +500,15 @@ class ScoringEngine
         'kontan', 'bisnis.com', 'kompas', 'detik finance', 'investor daily', 'katadata', 'antara',
     ];
 
-    private function scoreNews(array $articles): array
+    private function scoreNews(array $articles, ?string $volumeNote = null): array
     {
         if (count($articles) === 0) {
-            return ['score' => null, 'notes' => ['Tidak ada berita relevan ditemukan.']];
+            $notes = ['Tidak ada berita relevan ditemukan.'];
+            if ($volumeNote) {
+                $notes[] = $volumeNote;
+            }
+
+            return ['score' => null, 'notes' => $notes];
         }
 
         $weightedSum = 0;
@@ -416,7 +521,12 @@ class ScoringEngine
         $score = $this->clamp($weightedSum / $weightTotal);
         $count = count($articles);
 
-        return ['score' => $score, 'notes' => ["Sentimen rata-rata (tertimbang keandalan sumber) dari {$count} berita: {$this->describe($score)}"]];
+        $notes = ["Sentimen rata-rata (tertimbang keandalan sumber) dari {$count} berita: {$this->describe($score)}"];
+        if ($volumeNote) {
+            $notes[] = $volumeNote;
+        }
+
+        return ['score' => $score, 'notes' => $notes];
     }
 
     private function sourceWeight(?string $source): float

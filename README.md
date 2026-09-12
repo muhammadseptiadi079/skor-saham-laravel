@@ -328,6 +328,41 @@ kejujurannya):
     jadi tetap murni informasi "cek sendiri", konsisten dengan pendekatan
     catatan konteks lain (sektor, valuasi relatif sektor, dsb).
 
+Lima tambahan lagi (round keenam, masih rule-based/tanpa ML):
+
+- **Beta & posisi 52 minggu** — dua catatan konteks baru di sub-skor
+  fundamental, keduanya numpang di request Yahoo/Alpha Vantage yang sudah
+  ada (tanpa biaya API tambahan). Beta menjelaskan seberapa liar saham ini
+  gerak dibanding pasar (>1.2 "lebih volatile", <0.8 "defensif"); posisi
+  52-minggu menunjukkan harga sekarang ada di persentase berapa dari
+  rentang tertinggi/terendah setahun terakhir. Tidak memengaruhi skor.
+- **Volatilitas historis** — beda dari "Likuiditas rendah" yang sudah ada
+  (itu soal volume transaksi tipis), ini soal seberapa liar harga itu
+  sendiri bergerak hari ke hari (standar deviasi return harian,
+  di-annualized). Dihitung dari data harga yang sudah di-fetch, tanpa
+  panggilan API tambahan. Catatan risiko, bukan skor.
+- **Peringatan mendekati batas ARA/ARB** (auto reject atas/bawah IDX) —
+  kalau pergerakan harga hari ini sudah memakai ≥70% dari batas persentase
+  ARA/ARB untuk rentang harga saham tersebut, muncul peringatan. **Baca
+  ini baik-baik**: tabel persentase ARA/ARB yang dipakai (`ARA_ARB_BANDS`
+  di `ScoringEngine`) adalah tabel yang umum dikutip, tapi IDX sudah lebih
+  dari sekali merevisi aturan ini (terakhir sekitar 2023) — anggap sebagai
+  "perlu dicek", bukan kebenaran mutlak. Verifikasi ke aturan resmi BEI
+  terbaru sebelum benar-benar mengandalkan ini untuk keputusan trading.
+  Cuma untuk saham IDX.
+- **Akurasi per sektor watchlist** — melengkapi breakdown per kondisi
+  pasar yang sudah ada: sekarang bisa dilihat sektor mana sinyal "Buy"-nya
+  lebih sering benar, dari saham yang ada di watchlist dan sudah diberi
+  sektor.
+- **Deteksi lonjakan berita** (`NewsVolumeService`) — kalau jumlah berita
+  tentang suatu saham jauh di atas rata-rata riwayat analisisnya sendiri
+  (≥2x dari rata-rata, minimal 3 riwayat, minimal 5 berita), muncul
+  catatan "lagi jadi sorotan" di sub-skor berita. Sengaja dibandingkan ke
+  riwayat saham itu sendiri, bukan ambang angka tetap — jumlah berita
+  "normal" beda jauh antara bank besar dan saham kecil. Tidak menunjukkan
+  arah (bisa kabar baik atau buruk), cuma penanda "ada sesuatu, cek
+  sendiri isinya".
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -433,7 +468,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 92 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 108 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

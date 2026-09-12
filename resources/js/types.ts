@@ -137,6 +137,7 @@ export interface AccuracyResponse {
     avgForwardReturnPct: number | null;
     byLabel: AccuracyByLabel[];
     byMarketRegime: AccuracyByLabel[];
+    byWatchlistSector: AccuracyByLabel[];
     subScoreAccuracy: SubScoreAccuracy[];
 }
 

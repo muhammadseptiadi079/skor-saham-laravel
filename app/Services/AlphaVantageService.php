@@ -41,6 +41,9 @@ class AlphaVantageService
             'dividendYield' => $this->toNum($data['DividendYield'] ?? null),
             'payoutRatio' => null, // not provided by OVERVIEW
             'analystRatings' => $this->analystRatings($data),
+            'beta' => $this->toNum($data['Beta'] ?? null),
+            'fiftyTwoWeekLow' => $this->toNum($data['52WeekLow'] ?? null),
+            'fiftyTwoWeekHigh' => $this->toNum($data['52WeekHigh'] ?? null),
             'sector' => $data['Sector'] ?? null,
         ];
     }

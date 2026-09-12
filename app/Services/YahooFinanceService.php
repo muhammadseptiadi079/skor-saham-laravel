@@ -105,6 +105,9 @@ class YahooFinanceService
                 'nextEarningsDate' => $earningsDateRaw ? gmdate('Y-m-d', $earningsDateRaw) : null,
                 'dividendYield' => $this->raw($summary['dividendYield'] ?? null),
                 'payoutRatio' => $this->raw($summary['payoutRatio'] ?? null),
+                'beta' => $this->raw($summary['beta'] ?? ($stats['beta'] ?? null)),
+                'fiftyTwoWeekLow' => $this->raw($summary['fiftyTwoWeekLow'] ?? null),
+                'fiftyTwoWeekHigh' => $this->raw($summary['fiftyTwoWeekHigh'] ?? null),
                 'analystRatings' => $trendNow ? [
                     'strongBuy' => (int) ($trendNow['strongBuy'] ?? 0),
                     'buy' => (int) ($trendNow['buy'] ?? 0),

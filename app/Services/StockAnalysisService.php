@@ -19,6 +19,7 @@ class StockAnalysisService
         private ScoringEngine $scoringEngine,
         private SectorValuationService $sectorValuation,
         private NationalThemeService $nationalThemes,
+        private NewsVolumeService $newsVolume,
     ) {}
 
     public function analyze(string $ticker, string $market): array
@@ -27,6 +28,8 @@ class StockAnalysisService
         $sectorContext = $this->safe(fn () => $this->sectorValuation->averagesFor($ticker, $market));
         $sector = $this->safe(fn () => $this->sectorValuation->sectorFor($ticker, $market));
         $activeThemes = $this->safe(fn () => $this->nationalThemes->activeThemesForSector($sector, $market)) ?? [];
+        $newsArticleCount = count($data['newsArticles'] ?? []);
+        $newsVolumeNote = $this->safe(fn () => $this->newsVolume->spikeNoteFor($ticker, $market, $newsArticleCount));
 
         $analysis = $this->scoringEngine->buildAnalysis(
             $data['fundamentals'],
@@ -38,6 +41,7 @@ class StockAnalysisService
             $data['benchmarkLabel'],
             $sectorContext,
             $activeThemes,
+            $newsVolumeNote,
         );
 
         return array_merge([
@@ -56,6 +60,8 @@ class StockAnalysisService
             // stocks in the same sector against this one, without re-fetching fundamentals.
             'peRatioAtGeneration' => $data['fundamentals']['peRatio'] ?? null,
             'pegRatioAtGeneration' => $data['fundamentals']['pegRatio'] ?? null,
+            // Persisted so NewsVolumeService can build a per-ticker baseline for future analyses.
+            'newsArticleCountAtGeneration' => $newsArticleCount,
         ], $analysis);
     }
 

@@ -39,6 +39,7 @@ class AnalyzeController extends Controller
             // (see saveHistory) — not part of the public response contract.
             return response()->json(collect($analysis)->except([
                 'priceAtGeneration', 'benchmarkPriceAtGeneration', 'peRatioAtGeneration', 'pegRatioAtGeneration',
+                'newsArticleCountAtGeneration',
             ])->all());
         } catch (\Throwable $e) {
             Log::error('Analyze error: '.$e->getMessage());
@@ -69,6 +70,7 @@ class AnalyzeController extends Controller
                 'benchmark_price_at_generation' => $analysis['benchmarkPriceAtGeneration'] ?? null,
                 'pe_ratio' => $analysis['peRatioAtGeneration'] ?? null,
                 'peg_ratio' => $analysis['pegRatioAtGeneration'] ?? null,
+                'news_article_count' => $analysis['newsArticleCountAtGeneration'] ?? null,
                 'evaluation_horizon_days' => 20,
             ]);
         } catch (\Throwable $e) {
