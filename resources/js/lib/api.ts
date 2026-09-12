@@ -67,6 +67,19 @@ export function removeFromWatchlist(id: number): Promise<void> {
     return fetch(`/api/watchlist/${id}`, { method: 'DELETE' }).then(() => undefined);
 }
 
+export interface StarterPackResult {
+    added: WatchlistItem[];
+    skipped: string[];
+}
+
+export function addSectorStarterPack(sector: string): Promise<StarterPackResult> {
+    return fetch('/api/watchlist/starter-pack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sector }),
+    }).then((res) => asJson<StarterPackResult>(res));
+}
+
 export function fetchHistory(params?: { ticker?: string; market?: Market }): Promise<HistoryEntry[]> {
     const qs = new URLSearchParams();
     if (params?.ticker) qs.set('ticker', params.ticker);

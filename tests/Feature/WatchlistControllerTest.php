@@ -81,4 +81,32 @@ class WatchlistControllerTest extends TestCase
         $update->assertJsonPath('is_favorite', true);
         $this->assertTrue($item->fresh()->is_favorite);
     }
+
+    public function test_starter_pack_bulk_adds_curated_stocks_for_sector(): void
+    {
+        $response = $this->postJson('/api/watchlist/starter-pack', ['sector' => 'Pertambangan']);
+
+        $response->assertOk();
+        $added = $response->json('added');
+        $this->assertGreaterThan(5, count($added));
+        $this->assertSame([], $response->json('skipped'));
+        $this->assertDatabaseHas('watchlist_items', ['ticker' => 'ANTM', 'market' => 'idx', 'sector' => 'Pertambangan']);
+    }
+
+    public function test_starter_pack_skips_tickers_already_in_watchlist_without_changing_their_sector(): void
+    {
+        WatchlistItem::create(['ticker' => 'ANTM', 'market' => 'idx', 'sector' => 'Lainnya', 'is_favorite' => true]);
+
+        $response = $this->postJson('/api/watchlist/starter-pack', ['sector' => 'Pertambangan']);
+
+        $response->assertOk();
+        $this->assertContains('ANTM', $response->json('skipped'));
+        $this->assertDatabaseHas('watchlist_items', ['ticker' => 'ANTM', 'sector' => 'Lainnya', 'is_favorite' => true]);
+    }
+
+    public function test_starter_pack_rejects_sector_without_a_curated_list(): void
+    {
+        $this->postJson('/api/watchlist/starter-pack', ['sector' => 'Lainnya'])->assertStatus(422);
+        $this->postJson('/api/watchlist/starter-pack', ['sector' => 'Bukan Sektor'])->assertStatus(422);
+    }
 }

@@ -4,12 +4,16 @@ import { SECTORS, DEFAULT_SECTOR } from '@/lib/sectors';
 import Panel from './Panel';
 import { StarIcon, CloseIcon } from '@/Components/Icons';
 
+const STARTER_PACK_SECTORS = SECTORS.filter((s) => s !== DEFAULT_SECTOR);
+
 interface WatchlistPanelProps {
     items: WatchlistItem[];
     onSelect: (ticker: string, market: Market) => void;
     onRemove: (id: number) => void;
     onToggleFavorite: (id: number, next: boolean) => void;
     onChangeSector: (id: number, sector: string) => void;
+    onAddStarterPack: (sector: string) => void;
+    addingStarterPack: boolean;
 }
 
 export default function WatchlistPanel({
@@ -18,8 +22,11 @@ export default function WatchlistPanel({
     onRemove,
     onToggleFavorite,
     onChangeSector,
+    onAddStarterPack,
+    addingStarterPack,
 }: WatchlistPanelProps) {
     const [favoritesOnly, setFavoritesOnly] = useState(false);
+    const [starterSector, setStarterSector] = useState<string>(STARTER_PACK_SECTORS[0]);
 
     const visibleItems = favoritesOnly ? items.filter((item) => item.is_favorite) : items;
 
@@ -56,6 +63,30 @@ export default function WatchlistPanel({
                 </button>
             }
         >
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2.5">
+                <span className="text-xs text-slate-400">Kurang pilihan di suatu sektor?</span>
+                <select
+                    value={starterSector}
+                    onChange={(e) => setStarterSector(e.target.value)}
+                    className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-300"
+                >
+                    {STARTER_PACK_SECTORS.map((s) => (
+                        <option key={s} value={s} className="bg-slate-800 text-slate-200">
+                            {s}
+                        </option>
+                    ))}
+                </select>
+                <button
+                    type="button"
+                    onClick={() => onAddStarterPack(starterSector)}
+                    disabled={addingStarterPack}
+                    className="rounded-lg border border-sky-400/30 bg-sky-400/10 px-2.5 py-1 text-xs font-medium text-sky-300 transition-colors hover:border-sky-400/50 disabled:opacity-50"
+                    title="Tambahkan sekumpulan saham IDX terkenal di sektor ini ke watchlist"
+                >
+                    {addingStarterPack ? 'Menambahkan...' : '+ Tambah starter pack'}
+                </button>
+            </div>
+
             {items.length === 0 ? (
                 <p className="text-sm text-slate-500">Belum ada saham di watchlist.</p>
             ) : visibleItems.length === 0 ? (

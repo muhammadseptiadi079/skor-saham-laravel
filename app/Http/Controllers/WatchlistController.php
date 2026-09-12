@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\WatchlistItem;
 use App\Support\Sectors;
+use App\Support\SectorStarterPacks;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -51,6 +52,34 @@ class WatchlistController extends Controller
         $watchlistItem->update($validated);
 
         return response()->json($watchlistItem);
+    }
+
+    // Bulk-adds a curated list of well-known IDX tickers for a sector (see SectorStarterPacks) —
+    // built because the real gap users hit isn't a data source lacking sector coverage, it's not
+    // knowing which tickers exist in a sector they haven't already followed. Skips tickers already
+    // in the watchlist rather than overwriting their existing sector, so it never clobbers a
+    // user's own reclassification.
+    public function starterPack(Request $request)
+    {
+        $validated = $request->validate([
+            'sector' => ['required', 'string', Rule::in(SectorStarterPacks::sectors())],
+        ]);
+
+        $added = [];
+        $skipped = [];
+        foreach (SectorStarterPacks::forSector($validated['sector']) as $pick) {
+            $item = WatchlistItem::firstOrCreate(
+                ['ticker' => $pick['ticker'], 'market' => 'idx'],
+                ['name' => $pick['name'], 'sector' => $validated['sector'], 'is_favorite' => false],
+            );
+            if ($item->wasRecentlyCreated) {
+                $added[] = $item;
+            } else {
+                $skipped[] = $item->ticker;
+            }
+        }
+
+        return response()->json(['added' => $added, 'skipped' => $skipped]);
     }
 
     public function destroy(WatchlistItem $watchlistItem)

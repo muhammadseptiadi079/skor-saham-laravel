@@ -319,6 +319,15 @@ Empat perubahan lagi (round keempat, masih rule-based/tanpa ML):
     supaya beda dari yang cuma dipantau. Filter "Favorit saja" di panel
     Watchlist menyaring ke saham berstatus favorit itu saja — murni alat
     bantu pengelompokan, tidak memengaruhi skor `ScoringEngine`.
+  - **Starter pack per sektor** (`POST /api/watchlist/starter-pack`,
+    `App\Support\SectorStarterPacks`) — tombol "+ Tambah starter pack" di
+    panel Watchlist untuk sekali klik menambahkan ~6-12 saham IDX terkenal
+    di sektor pilihan (misal Pertambangan: ADRO, PTBA, ANTM, INCO, MDKA,
+    ITMG, HRUM, BUMI, TINS, BYAN, DOID, MBMA). Ini daftar statis dari nama
+    ticker publik yang memang tercatat di BEI — bukan dari Stockbit/Ajaib
+    atau sumber berbayar manapun (lihat kenapa di bagian "Keterbatasan
+    yang jujur" di bawah). Ticker yang sudah ada di watchlist di-skip
+    (sektor/status favoritnya yang sudah kamu atur tidak ditimpa).
 - **Riwayat** (`/api/history`) — setiap kali `/api/analyze` dipanggil,
   hasilnya otomatis tersimpan ke tabel `analysis_history`. Gagal simpan
   tidak akan menggagalkan response analisa (best-effort).
@@ -348,6 +357,16 @@ Empat perubahan lagi (round keempat, masih rule-based/tanpa ML):
   Dijadwalkan otomatis tiap hari jam 04:00.
 
 ## Keterbatasan yang jujur (baca sebelum lapor "kok kosong?")
+
+**Kenapa tidak konek ke Stockbit/Ajaib** — keduanya tidak punya API publik
+resmi untuk pihak ketiga; yang ada di balik aplikasi mereka adalah endpoint
+privat khusus aplikasi mobile mereka sendiri. Menyambungkannya berarti
+reverse-engineer endpoint privat itu dan menyimpan/mengirim kredensial akun
+broker pengguna di dalam aplikasi ini — melanggar ketentuan layanan mereka
+dan berisiko akun ke-flag, jadi ini sengaja tidak dibangun. Solusi yang
+dipakai untuk masalah "pilihan saham per sektor sedikit" adalah fitur
+starter pack di atas: daftar ticker BEI publik yang dikurasi manual, bukan
+data broker mana pun.
 
 Sesi pengembangan ini berjalan di sandbox yang **memblokir semua akses
 jaringan keluar** (termasuk ke Yahoo Finance, Alpha Vantage, SEC EDGAR,
@@ -387,7 +406,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 78 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 81 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

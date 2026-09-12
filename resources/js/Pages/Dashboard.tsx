@@ -32,6 +32,7 @@ export default function Dashboard() {
     const [resultTrend, setResultTrend] = useState<HistoryEntry[]>([]);
 
     const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+    const [addingStarterPack, setAddingStarterPack] = useState(false);
     const [screenerMarket, setScreenerMarket] = useState<Market>('idx');
     const [screener, setScreener] = useState<ScreenerResponse | null>(null);
     const [ipoListings, setIpoListings] = useState<IpoListing[]>([]);
@@ -127,6 +128,22 @@ export default function Dashboard() {
         refreshWatchlist();
     }
 
+    async function handleAddStarterPack(sector: string) {
+        setAddingStarterPack(true);
+        try {
+            const result = await api.addSectorStarterPack(sector);
+            refreshWatchlist();
+            const message =
+                result.added.length > 0
+                    ? `Ditambahkan ${result.added.length} saham sektor ${sector}` +
+                      (result.skipped.length > 0 ? ` (${result.skipped.length} sudah ada sebelumnya).` : '.')
+                    : `Semua saham starter pack sektor ${sector} sudah ada di watchlist kamu.`;
+            setStatus({ message });
+        } finally {
+            setAddingStarterPack(false);
+        }
+    }
+
     function handleSelectCached(cached: CachedAnalysis) {
         showResult(cached.analysis, cached.savedAt);
     }
@@ -205,6 +222,8 @@ export default function Dashboard() {
                     onRemove={handleRemoveWatchlist}
                     onToggleFavorite={handleToggleFavorite}
                     onChangeSector={handleChangeSector}
+                    onAddStarterPack={handleAddStarterPack}
+                    addingStarterPack={addingStarterPack}
                 />
                 <ScreenerPanel
                     market={screenerMarket}
