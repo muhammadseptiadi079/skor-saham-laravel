@@ -73,9 +73,10 @@ class YahooFinanceService
         try {
             $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
                 ->get("https://query1.finance.yahoo.com/v10/finance/quoteSummary/{$symbol}", [
-                    // calendarEvents rides along on this same request (no extra HTTP call) to get
-                    // the next earnings date — see ScoringEngine's earnings-proximity note.
-                    'modules' => 'financialData,defaultKeyStatistics,summaryDetail,summaryProfile,calendarEvents',
+                    // calendarEvents and recommendationTrend ride along on this same request (no
+                    // extra HTTP call) — see ScoringEngine's earnings-proximity note and analyst
+                    // recommendation scoring.
+                    'modules' => 'financialData,defaultKeyStatistics,summaryDetail,summaryProfile,calendarEvents,recommendationTrend',
                 ])->json();
 
             $result = $data['quoteSummary']['result'][0] ?? null;
@@ -88,6 +89,8 @@ class YahooFinanceService
             $summary = $result['summaryDetail'] ?? [];
             $profile = $result['summaryProfile'] ?? [];
             $earningsDateRaw = $result['calendarEvents']['earnings']['earningsDate'][0]['raw'] ?? null;
+            // trend[0] is the '0m' (current month) bucket — Yahoo orders it newest-first.
+            $trendNow = $result['recommendationTrend']['trend'][0] ?? null;
 
             return [
                 'peRatio' => $this->raw($summary['trailingPE'] ?? null),
@@ -100,6 +103,15 @@ class YahooFinanceService
                 'marketCap' => $this->raw($stats['marketCap'] ?? ($summary['marketCap'] ?? null)),
                 'analystTargetPrice' => $this->raw($fin['targetMeanPrice'] ?? null),
                 'nextEarningsDate' => $earningsDateRaw ? gmdate('Y-m-d', $earningsDateRaw) : null,
+                'dividendYield' => $this->raw($summary['dividendYield'] ?? null),
+                'payoutRatio' => $this->raw($summary['payoutRatio'] ?? null),
+                'analystRatings' => $trendNow ? [
+                    'strongBuy' => (int) ($trendNow['strongBuy'] ?? 0),
+                    'buy' => (int) ($trendNow['buy'] ?? 0),
+                    'hold' => (int) ($trendNow['hold'] ?? 0),
+                    'sell' => (int) ($trendNow['sell'] ?? 0),
+                    'strongSell' => (int) ($trendNow['strongSell'] ?? 0),
+                ] : null,
                 // Display-only context (see ScoringEngine::scoreFundamentals) — not scored, since
                 // there's no free source for sector-average ratios to compare it against.
                 'sector' => $profile['sector'] ?? null,

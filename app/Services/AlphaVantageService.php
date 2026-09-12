@@ -38,8 +38,26 @@ class AlphaVantageService
             'returnOnEquity' => $this->toNum($data['ReturnOnEquityTTM'] ?? null),
             'marketCap' => $this->toNum($data['MarketCapitalization'] ?? null),
             'analystTargetPrice' => $this->toNum($data['AnalystTargetPrice'] ?? null),
+            'dividendYield' => $this->toNum($data['DividendYield'] ?? null),
+            'payoutRatio' => null, // not provided by OVERVIEW
+            'analystRatings' => $this->analystRatings($data),
             'sector' => $data['Sector'] ?? null,
         ];
+    }
+
+    private function analystRatings(array $data): ?array
+    {
+        $keys = ['StrongBuy' => 'strongBuy', 'Buy' => 'buy', 'Hold' => 'hold', 'Sell' => 'sell', 'StrongSell' => 'strongSell'];
+        $ratings = [];
+        foreach ($keys as $avKey => $key) {
+            $v = $this->toNum($data["AnalystRating{$avKey}"] ?? null);
+            if ($v === null) {
+                return null;
+            }
+            $ratings[$key] = (int) $v;
+        }
+
+        return $ratings;
     }
 
     // News + sentiment (Alpha Vantage already scores each article -1..1)

@@ -92,7 +92,14 @@ class AnalyzeControllerTest extends TestCase
         $response->assertJsonPath('currency', 'IDR');
 
         $this->assertDatabaseCount('analysis_history', 1);
-        $this->assertDatabaseHas('analysis_history', ['ticker' => 'BBCA', 'market' => 'idx']);
+        $this->assertDatabaseHas('analysis_history', [
+            'ticker' => 'BBCA', 'market' => 'idx', 'pe_ratio' => 12.0, 'peg_ratio' => 1.2,
+        ]);
+
+        // Internal-only fields used for the backtest/sector-valuation cache must never leak into
+        // the public response.
+        $response->assertJsonMissingPath('peRatioAtGeneration');
+        $response->assertJsonMissingPath('pegRatioAtGeneration');
 
         // The ^JKSE benchmark fetch reuses the same faked Yahoo chart endpoint above, so the
         // relative-momentum note should be present end-to-end, not just at the unit level.

@@ -35,9 +35,11 @@ class AnalyzeController extends Controller
             $analysis = $this->analysisService->analyze($ticker, $market);
             $this->saveHistory($analysis);
 
-            // priceAtGeneration/benchmarkPriceAtGeneration are only needed internally for the
-            // backtest (see saveHistory) — not part of the public response contract.
-            return response()->json(collect($analysis)->except(['priceAtGeneration', 'benchmarkPriceAtGeneration'])->all());
+            // These fields are only needed internally for the backtest/sector-valuation cache
+            // (see saveHistory) — not part of the public response contract.
+            return response()->json(collect($analysis)->except([
+                'priceAtGeneration', 'benchmarkPriceAtGeneration', 'peRatioAtGeneration', 'pegRatioAtGeneration',
+            ])->all());
         } catch (\Throwable $e) {
             Log::error('Analyze error: '.$e->getMessage());
 
@@ -65,6 +67,8 @@ class AnalyzeController extends Controller
                 'generated_at' => $analysis['generatedAt'],
                 'price_at_generation' => $analysis['priceAtGeneration'] ?? null,
                 'benchmark_price_at_generation' => $analysis['benchmarkPriceAtGeneration'] ?? null,
+                'pe_ratio' => $analysis['peRatioAtGeneration'] ?? null,
+                'peg_ratio' => $analysis['pegRatioAtGeneration'] ?? null,
                 'evaluation_horizon_days' => 20,
             ]);
         } catch (\Throwable $e) {

@@ -28,12 +28,13 @@ class ScoringEngine
         string $currency,
         ?array $benchmarkSeries = null,
         ?string $benchmarkLabel = null,
+        ?array $sectorContext = null,
     ): array {
         $currentPrice = $priceSeries[0]['close'] ?? null;
-        $fundamentalResult = $this->scoreFundamentals($fundamentals, $currentPrice, $currency);
+        $fundamentalResult = $this->scoreFundamentals($fundamentals, $currentPrice, $currency, $sectorContext);
         $momentumResult = $this->scoreMomentum($priceSeries, $currency, $benchmarkSeries, $benchmarkLabel);
         $longTermTrendResult = $this->scoreLongTermTrend($priceSeries);
-        $ownershipResult = $this->scoreOwnership($ownershipTransactions, $currency);
+        $ownershipResult = $this->scoreOwnership($ownershipTransactions, $currency, $fundamentals['marketCap'] ?? null);
 
         $newsArticles = $newsArticles ?? [];
         $newsResult = $this->scoreNews($newsArticles);
@@ -76,7 +77,7 @@ class ScoringEngine
         ];
     }
 
-    private function scoreFundamentals(?array $f, ?float $currentPrice, string $currency): array
+    private function scoreFundamentals(?array $f, ?float $currentPrice, string $currency, ?array $sectorContext = null): array
     {
         if (! $f) {
             return ['score' => null, 'notes' => ['Data fundamental tidak tersedia.']];
@@ -84,7 +85,7 @@ class ScoringEngine
 
         $notes = [];
         $parts = [];
-        $contextNotes = $this->fundamentalContextNotes($f);
+        $contextNotes = $this->fundamentalContextNotes($f, $sectorContext);
 
         if ($this->isNum($f['revenueGrowthYoy'] ?? null)) {
             $v = $f['revenueGrowthYoy'];
@@ -142,6 +143,18 @@ class ScoringEngine
             $notes[] = 'Target harga analis '.$this->pricePerShare($target, $currency).
                 " (potensi {$arah} {$this->pct(abs($upside))} dari harga sekarang) ({$this->describe($s)})";
         }
+        // Consensus buy/hold/sell counts — a different angle from the target price above (that's
+        // "how far", this is "how many analysts agree"). Also already fetched with the same
+        // request as the rest of $f, no extra API cost.
+        if (! empty($f['analystRatings']) && array_sum($f['analystRatings']) > 0) {
+            $r = $f['analystRatings'];
+            $total = array_sum($r);
+            $net = ($r['strongBuy'] + $r['buy'] - $r['sell'] - $r['strongSell']) / $total;
+            $s = $this->clamp($net);
+            $parts[] = $s;
+            $notes[] = "Rekomendasi analis: {$r['strongBuy']} Strong Buy, {$r['buy']} Buy, {$r['hold']} Hold, ".
+                "{$r['sell']} Sell, {$r['strongSell']} Strong Sell dari {$total} analis ({$this->describe($s)})";
+        }
 
         if (count($parts) === 0) {
             return ['score' => null, 'notes' => count($contextNotes) > 0 ? $contextNotes : ['Tidak ada rasio fundamental yang bisa dibaca.']];
@@ -152,9 +165,11 @@ class ScoringEngine
     }
 
     // Notes that add context but never move the score — no free data source exists to make them
-    // rigorous (sector-average ratios), or they're a risk flag rather than a directional signal
-    // (earnings proximity).
-    private function fundamentalContextNotes(array $f): array
+    // rigorous (sector-average ratios), they're a risk flag rather than a directional signal
+    // (earnings proximity), or they're too ambiguous on their own to score cleanly (a dividend
+    // yield can be a healthy payout or a yield trap from a falling price — the number alone
+    // doesn't say which).
+    private function fundamentalContextNotes(array $f, ?array $sectorContext = null): array
     {
         $notes = [];
 
@@ -168,6 +183,27 @@ class ScoringEngine
                 $days = (int) round($daysUntil);
                 $notes[] = "Laporan keuangan berikutnya diperkirakan sekitar {$f['nextEarningsDate']} (~{$days} hari lagi) — volatilitas harga bisa meningkat menjelang rilis.";
             }
+        }
+
+        if ($this->isNum($f['dividendYield'] ?? null) && $f['dividendYield'] > 0) {
+            $note = "Dividend yield {$this->pct($f['dividendYield'])}";
+            if ($this->isNum($f['payoutRatio'] ?? null)) {
+                $note .= ", rasio payout {$this->pct($f['payoutRatio'])}";
+                if ($f['payoutRatio'] > 0.9) {
+                    $note .= ' (cukup tinggi — ada risiko dividen dipotong kalau laba turun)';
+                }
+            }
+            $notes[] = $note;
+        }
+
+        if ($sectorContext && $this->isNum($f['peRatio'] ?? null) && $this->isNum($sectorContext['avgPe'] ?? null)) {
+            $ownPe = $f['peRatio'];
+            $avgPe = $sectorContext['avgPe'];
+            $diff = ($ownPe - $avgPe) / $avgPe;
+            $arah = $diff <= 0 ? 'lebih murah' : 'lebih mahal';
+            $notes[] = 'P/E saham ini '.number_format($ownPe, 1)." dibanding rata-rata {$sectorContext['peSampleSize']} saham ".
+                "sektor {$sectorContext['sector']} lain di watchlist kamu (".number_format($avgPe, 1).') — '.
+                "{$arah} {$this->pct(abs($diff))} (pembanding dari watchlist sendiri, sampel kecil — bukan data resmi sektor).";
         }
 
         return $notes;
@@ -391,7 +427,14 @@ class ScoringEngine
     // Insider/owner open-market buying vs selling. Cluster buying by multiple distinct insiders is
     // read as a stronger confidence signal than a single insider's trade (which can be for personal
     // reasons unrelated to the company's outlook, e.g. diversification, tax planning).
-    private function scoreOwnership(?array $transactions, string $currency): array
+    // A single transaction this large relative to market cap looks less like routine insider
+    // trading and more like a stake/control change. Flagged as a "go verify this manually" note
+    // rather than scored either way — no free data source lets this app look up who the buyer is
+    // or whether they have a track record of turning around companies they've taken stakes in
+    // before, so pretending to score that would just be making it up.
+    private const CONTROL_CHANGE_THRESHOLD = 0.03; // one transaction >= 3% of market cap
+
+    private function scoreOwnership(?array $transactions, string $currency, ?float $marketCap = null): array
     {
         if ($transactions === null) {
             return ['score' => null, 'notes' => ['Data transaksi insider/pemilik tidak tersedia untuk saham ini.']];
@@ -438,8 +481,40 @@ class ScoringEngine
         if ($this->hasStaleTransaction($relevant)) {
             $notes[] = 'Transaksi yang lebih lama diberi bobot lebih kecil dari yang baru-baru ini.';
         }
+        $controlChangeNote = $this->controlChangeNote($relevant, $marketCap, $currency);
+        if ($controlChangeNote) {
+            $notes[] = $controlChangeNote;
+        }
 
         return ['score' => $score, 'notes' => $notes, 'transactions' => array_slice($relevant, 0, 8)];
+    }
+
+    private function controlChangeNote(array $transactions, ?float $marketCap, string $currency): ?string
+    {
+        if (! $marketCap || $marketCap <= 0) {
+            return null;
+        }
+
+        $biggest = null;
+        foreach ($transactions as $t) {
+            if (! $this->isNum($t['value'] ?? null)) {
+                continue;
+            }
+            $ratio = $t['value'] / $marketCap;
+            if ($ratio >= self::CONTROL_CHANGE_THRESHOLD && (! $biggest || $ratio > $biggest['ratio'])) {
+                $biggest = ['ratio' => $ratio, 'transaction' => $t];
+            }
+        }
+        if (! $biggest) {
+            return null;
+        }
+
+        $t = $biggest['transaction'];
+        $verb = $t['type'] === 'buy' ? 'membeli' : 'menjual';
+
+        return "Kemungkinan pengalihan kepemilikan besar: {$t['insiderName']} {$verb} senilai {$this->money($t['value'], $currency)} ".
+            "(~{$this->pct($biggest['ratio'])} dari kapitalisasi pasar) dalam satu transaksi — cek manual siapa pihak ini, ".
+            'track record pembeli/penjualnya tidak bisa ditelusuri dari sumber data gratis yang dipakai aplikasi ini.';
     }
 
     private function sumWeightedValue(array $list): float

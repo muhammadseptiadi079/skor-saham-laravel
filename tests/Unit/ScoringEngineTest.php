@@ -363,4 +363,105 @@ class ScoringEngineTest extends TestCase
         $this->assertSame(5, $result['dataCompleteness']['available']);
         $this->assertSame(5, $result['dataCompleteness']['total']);
     }
+
+    public function test_analyst_recommendation_trend_scores_positive_when_mostly_buy(): void
+    {
+        $fundamentals = ['analystRatings' => ['strongBuy' => 5, 'buy' => 3, 'hold' => 2, 'sell' => 0, 'strongSell' => 0]];
+
+        $result = $this->engine->buildAnalysis($fundamentals, null, null, null, 'USD');
+
+        $this->assertGreaterThan(0, $result['subScores']['fundamentals']['score']);
+        $notes = implode(' ', $result['subScores']['fundamentals']['notes']);
+        $this->assertStringContainsString('Rekomendasi analis: 5 Strong Buy, 3 Buy, 2 Hold, 0 Sell, 0 Strong Sell dari 10 analis', $notes);
+    }
+
+    public function test_analyst_recommendation_trend_scores_negative_when_mostly_sell(): void
+    {
+        $fundamentals = ['analystRatings' => ['strongBuy' => 0, 'buy' => 1, 'hold' => 1, 'sell' => 4, 'strongSell' => 4]];
+
+        $result = $this->engine->buildAnalysis($fundamentals, null, null, null, 'USD');
+
+        $this->assertLessThan(0, $result['subScores']['fundamentals']['score']);
+    }
+
+    public function test_analyst_ratings_all_zero_does_not_add_a_note(): void
+    {
+        $fundamentals = ['pegRatio' => 0.8, 'analystRatings' => ['strongBuy' => 0, 'buy' => 0, 'hold' => 0, 'sell' => 0, 'strongSell' => 0]];
+
+        $result = $this->engine->buildAnalysis($fundamentals, null, null, null, 'USD');
+
+        $this->assertStringNotContainsString('Rekomendasi analis', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_dividend_yield_shown_as_context_note_without_affecting_score(): void
+    {
+        $withoutDividend = $this->engine->buildAnalysis(['pegRatio' => 0.8], null, null, null, 'IDR');
+        $withDividend = $this->engine->buildAnalysis(['pegRatio' => 0.8, 'dividendYield' => 0.032, 'payoutRatio' => 0.45], null, null, null, 'IDR');
+
+        $this->assertSame($withoutDividend['subScores']['fundamentals']['score'], $withDividend['subScores']['fundamentals']['score']);
+        $notes = implode(' ', $withDividend['subScores']['fundamentals']['notes']);
+        $this->assertStringContainsString('Dividend yield 3.2%', $notes);
+        $this->assertStringContainsString('rasio payout 45.0%', $notes);
+    }
+
+    public function test_high_payout_ratio_flagged_as_risk(): void
+    {
+        $result = $this->engine->buildAnalysis(['dividendYield' => 0.1, 'payoutRatio' => 0.95], null, null, null, 'IDR');
+
+        $this->assertStringContainsString('risiko dividen dipotong', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_sector_relative_valuation_note_added_when_context_provided(): void
+    {
+        $sectorContext = ['sector' => 'Keuangan & Perbankan', 'avgPe' => 20.0, 'peSampleSize' => 3, 'avgPeg' => null, 'pegSampleSize' => 0];
+
+        $result = $this->engine->buildAnalysis(['peRatio' => 10.0], null, null, null, 'IDR', null, null, $sectorContext);
+
+        $notes = implode(' ', $result['subScores']['fundamentals']['notes']);
+        $this->assertStringContainsString('P/E saham ini 10.0', $notes);
+        $this->assertStringContainsString('lebih murah 50.0%', $notes);
+    }
+
+    public function test_no_sector_relative_note_when_context_missing(): void
+    {
+        $result = $this->engine->buildAnalysis(['peRatio' => 10.0], null, null, null, 'IDR');
+
+        $this->assertStringNotContainsString('dibanding rata-rata', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_large_insider_transaction_relative_to_market_cap_flags_control_change(): void
+    {
+        $fundamentals = ['marketCap' => 10_000_000]; // one buy below is 10% of this
+        $transactions = [
+            ['type' => 'buy', 'insiderName' => 'Big Holdco', 'value' => 1_000_000, 'shares' => 1000],
+        ];
+
+        $result = $this->engine->buildAnalysis($fundamentals, null, null, $transactions, 'IDR');
+
+        $this->assertStringContainsString('Kemungkinan pengalihan kepemilikan besar', implode(' ', $result['subScores']['ownership']['notes']));
+        $this->assertStringContainsString('Big Holdco', implode(' ', $result['subScores']['ownership']['notes']));
+    }
+
+    public function test_small_insider_transaction_does_not_flag_control_change(): void
+    {
+        $fundamentals = ['marketCap' => 10_000_000_000]; // the same buy is now negligible
+        $transactions = [
+            ['type' => 'buy', 'insiderName' => 'Small Fry', 'value' => 1_000_000, 'shares' => 1000],
+        ];
+
+        $result = $this->engine->buildAnalysis($fundamentals, null, null, $transactions, 'IDR');
+
+        $this->assertStringNotContainsString('pengalihan kepemilikan', implode(' ', $result['subScores']['ownership']['notes']));
+    }
+
+    public function test_control_change_flag_skipped_when_market_cap_unavailable(): void
+    {
+        $transactions = [
+            ['type' => 'buy', 'insiderName' => 'Big Holdco', 'value' => 1_000_000, 'shares' => 1000],
+        ];
+
+        $result = $this->engine->buildAnalysis(null, null, null, $transactions, 'IDR');
+
+        $this->assertStringNotContainsString('pengalihan kepemilikan', implode(' ', $result['subScores']['ownership']['notes']));
+    }
 }

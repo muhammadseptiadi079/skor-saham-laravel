@@ -17,11 +17,13 @@ class StockAnalysisService
         private SentimentService $sentiment,
         private SecEdgarService $secEdgar,
         private ScoringEngine $scoringEngine,
+        private SectorValuationService $sectorValuation,
     ) {}
 
     public function analyze(string $ticker, string $market): array
     {
         $data = $market === 'idx' ? $this->analyzeIdx($ticker) : $this->analyzeGlobal($ticker);
+        $sectorContext = $this->safe(fn () => $this->sectorValuation->averagesFor($ticker, $market));
 
         $analysis = $this->scoringEngine->buildAnalysis(
             $data['fundamentals'],
@@ -31,6 +33,7 @@ class StockAnalysisService
             $data['currency'],
             $data['benchmarkSeries'],
             $data['benchmarkLabel'],
+            $sectorContext,
         );
 
         return array_merge([
@@ -45,6 +48,10 @@ class StockAnalysisService
             // Lets the backtest tell "this call was right because the whole market rallied" apart
             // from "this call was right on its own merits" — see BacktestService's regime check.
             'benchmarkPriceAtGeneration' => $data['benchmarkSeries'][0]['close'] ?? null,
+            // Persisted so SectorValuationService can compare future analyses of other watchlist
+            // stocks in the same sector against this one, without re-fetching fundamentals.
+            'peRatioAtGeneration' => $data['fundamentals']['peRatio'] ?? null,
+            'pegRatioAtGeneration' => $data['fundamentals']['pegRatio'] ?? null,
         ], $analysis);
     }
 

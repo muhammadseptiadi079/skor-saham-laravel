@@ -269,6 +269,38 @@ Empat perubahan lagi (round ketiga, masih rule-based/tanpa ML):
   kolom ini ada) otomatis dikecualikan dari breakdown ini, tapi tetap
   masuk hitungan akurasi keseluruhan.
 
+Empat perubahan lagi (round keempat, masih rule-based/tanpa ML):
+
+- **Tren rekomendasi analis** (`analystRatings`) — jumlah Strong Buy/Buy/
+  Hold/Sell/Strong Sell bulan berjalan, ikut dinilai di sub-skor
+  fundamental (net bullish-bearish dari total analis). Yahoo lewat modul
+  `recommendationTrend` (menumpang di request `quoteSummary` yang sama),
+  Alpha Vantage lewat field `AnalystRating*` di `OVERVIEW` — keduanya
+  tanpa panggilan API tambahan.
+- **Dividend yield & rasio payout** — catatan konteks (tidak memengaruhi
+  skor, karena yield tinggi bisa berarti kebijakan dividen sehat atau bisa
+  juga sekadar harga saham yang lagi jatuh — angka itu sendiri tidak cukup
+  untuk menyimpulkan arah). Kalau rasio payout di atas 90%, ditambahkan
+  peringatan risiko dividen bisa dipotong.
+- **Valuasi relatif sektor** (`SectorValuationService`) — P/E saham
+  dibandingkan ke rata-rata P/E (dan PEG) saham lain di sektor yang sama
+  **di watchlist milik user sendiri** (pakai fitur pengelompokan sektor
+  watchlist), bukan dari sumber eksternal — karena memang tidak ada versi
+  gratisnya untuk rata-rata sektor IDX. Cuma muncul kalau ticker yang
+  dianalisis ada di watchlist dan sektornya diisi (bukan "Lainnya"), serta
+  ada minimal 2 saham lain di sektor yang sama yang sudah pernah
+  dianalisis. Sampelnya kecil dan self-selected (sebatas isi watchlist
+  sendiri) — catatan konteks, bukan skor.
+- **Peringatan pengalihan kepemilikan besar** — kalau satu transaksi
+  insider nilainya ≥3% dari kapitalisasi pasar, ditandai sebagai
+  "kemungkinan pengalihan kepemilikan besar, cek manual siapa pihaknya".
+  Ini **bukan** upaya melacak rekam jejak pembeli/penjual di
+  pengambilalihan-pengambilalihan lain — tidak ada sumber data gratis yang
+  memungkinkan pencarian riwayat seseorang/entitas lintas ticker (nama
+  yang sama pun belum tentu entitas yang sama), jadi aplikasi ini jujur
+  berhenti di "ini kejadian besar, pelajari sendiri" alih-alih berpura-pura
+  tahu rekam jejaknya.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -355,7 +387,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 63 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 78 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.
