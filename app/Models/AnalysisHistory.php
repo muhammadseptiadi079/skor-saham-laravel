@@ -13,8 +13,8 @@ class AnalysisHistory extends Model
         'longterm_score', 'longterm_label',
         'trading_score', 'trading_label',
         'sub_scores', 'generated_at',
-        'price_at_generation', 'evaluation_horizon_days',
-        'evaluated_at', 'forward_return', 'outcome_correct',
+        'price_at_generation', 'benchmark_price_at_generation', 'evaluation_horizon_days',
+        'evaluated_at', 'forward_return', 'outcome_correct', 'market_regime',
     ];
 
     protected $casts = [

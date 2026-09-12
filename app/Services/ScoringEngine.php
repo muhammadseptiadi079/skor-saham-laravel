@@ -29,8 +29,9 @@ class ScoringEngine
         ?array $benchmarkSeries = null,
         ?string $benchmarkLabel = null,
     ): array {
-        $fundamentalResult = $this->scoreFundamentals($fundamentals);
-        $momentumResult = $this->scoreMomentum($priceSeries, $benchmarkSeries, $benchmarkLabel);
+        $currentPrice = $priceSeries[0]['close'] ?? null;
+        $fundamentalResult = $this->scoreFundamentals($fundamentals, $currentPrice, $currency);
+        $momentumResult = $this->scoreMomentum($priceSeries, $currency, $benchmarkSeries, $benchmarkLabel);
         $longTermTrendResult = $this->scoreLongTermTrend($priceSeries);
         $ownershipResult = $this->scoreOwnership($ownershipTransactions, $currency);
 
@@ -67,6 +68,7 @@ class ScoringEngine
                 ],
             ],
             'dataCompleteness' => ['available' => $available, 'total' => count($subScores)],
+            'lowLiquidity' => $momentumResult['lowLiquidity'] ?? false,
             'longterm' => ['score' => $longtermScore, 'label' => $this->labelFor($longtermScore)],
             'trading' => ['score' => $tradingScore, 'label' => $this->labelFor($tradingScore)],
             'disclaimer' => 'Ini analisis berbasis aturan sederhana (bukan prediksi yang terjamin akurat). '.
@@ -74,7 +76,7 @@ class ScoringEngine
         ];
     }
 
-    private function scoreFundamentals(?array $f): array
+    private function scoreFundamentals(?array $f, ?float $currentPrice, string $currency): array
     {
         if (! $f) {
             return ['score' => null, 'notes' => ['Data fundamental tidak tersedia.']];
@@ -82,6 +84,7 @@ class ScoringEngine
 
         $notes = [];
         $parts = [];
+        $contextNotes = $this->fundamentalContextNotes($f);
 
         if ($this->isNum($f['revenueGrowthYoy'] ?? null)) {
             $v = $f['revenueGrowthYoy'];
@@ -127,33 +130,71 @@ class ScoringEngine
             $parts[] = $s;
             $notes[] = 'PEG ratio '.number_format($v, 2)." ({$this->describe($s)})";
         }
+        // Consensus analyst target vs. today's price — how much upside/downside the sell side
+        // collectively sees. Already fetched by both providers as part of the same request, no
+        // extra API cost.
+        if ($this->isNum($f['analystTargetPrice'] ?? null) && $currentPrice && $currentPrice > 0) {
+            $target = $f['analystTargetPrice'];
+            $upside = ($target - $currentPrice) / $currentPrice;
+            $s = $upside > 0.2 ? 1 : ($upside > 0.05 ? 0.5 : ($upside > -0.05 ? 0 : ($upside > -0.2 ? -0.5 : -1)));
+            $parts[] = $s;
+            $arah = $upside >= 0 ? 'naik' : 'turun';
+            $notes[] = 'Target harga analis '.$this->pricePerShare($target, $currency).
+                " (potensi {$arah} {$this->pct(abs($upside))} dari harga sekarang) ({$this->describe($s)})";
+        }
 
         if (count($parts) === 0) {
-            $notes = ! empty($f['sector']) ? ["Sektor: {$f['sector']}"] : [];
-
-            return ['score' => null, 'notes' => count($notes) > 0 ? $notes : ['Tidak ada rasio fundamental yang bisa dibaca.']];
+            return ['score' => null, 'notes' => count($contextNotes) > 0 ? $contextNotes : ['Tidak ada rasio fundamental yang bisa dibaca.']];
         }
         $score = $this->clamp(array_sum($parts) / count($parts));
 
-        // Context only — not scored, since there's no reliable free source for sector-average
-        // ratios to compare against (a P/E of 20 means different things in different sectors).
+        return ['score' => $score, 'notes' => [...$notes, ...$contextNotes]];
+    }
+
+    // Notes that add context but never move the score — no free data source exists to make them
+    // rigorous (sector-average ratios), or they're a risk flag rather than a directional signal
+    // (earnings proximity).
+    private function fundamentalContextNotes(array $f): array
+    {
+        $notes = [];
+
         if (! empty($f['sector'])) {
             $notes[] = "Sektor: {$f['sector']}";
         }
 
-        return ['score' => $score, 'notes' => $notes];
+        if (! empty($f['nextEarningsDate'])) {
+            $daysUntil = (strtotime($f['nextEarningsDate']) - strtotime('today')) / 86400;
+            if ($daysUntil >= 0 && $daysUntil <= 14) {
+                $days = (int) round($daysUntil);
+                $notes[] = "Laporan keuangan berikutnya diperkirakan sekitar {$f['nextEarningsDate']} (~{$days} hari lagi) — volatilitas harga bisa meningkat menjelang rilis.";
+            }
+        }
+
+        return $notes;
     }
 
-    private function scoreMomentum(?array $series, ?array $benchmarkSeries = null, ?string $benchmarkLabel = null): array
+    private function pricePerShare(float $v, string $currency): string
+    {
+        $isIdr = $currency === 'IDR';
+
+        return ($isIdr ? 'Rp' : '$').number_format($v, $isIdr ? 0 : 2);
+    }
+
+    // A stock with very thin daily trading value makes RSI/MACD/momentum noisy (a handful of
+    // trades can swing the close) and is harder to actually enter/exit at the analyzed price —
+    // this is a confidence flag on the signal, not a directional score, so it never joins $parts.
+    private const LOW_LIQUIDITY_THRESHOLD = ['IDR' => 1_000_000_000, 'USD' => 1_000_000];
+
+    private function scoreMomentum(?array $series, string $currency, ?array $benchmarkSeries = null, ?string $benchmarkLabel = null): array
     {
         if (! $series || count($series) < 20) {
-            return ['score' => null, 'notes' => ['Data harga/volume tidak cukup (butuh minimal 20 hari).']];
+            return ['score' => null, 'notes' => ['Data harga/volume tidak cukup (butuh minimal 20 hari).'], 'lowLiquidity' => false];
         }
         $recent = array_slice($series, 0, 20); // newest first
         $closeNow = $recent[0]['close'] ?? null;
         $close20dAgo = $recent[19]['close'] ?? null;
         if (! $closeNow || ! $close20dAgo) {
-            return ['score' => null, 'notes' => ['Data harga tidak lengkap.']];
+            return ['score' => null, 'notes' => ['Data harga tidak lengkap.'], 'lowLiquidity' => false];
         }
 
         $momentum = ($closeNow - $close20dAgo) / $close20dAgo;
@@ -244,7 +285,18 @@ class ScoringEngine
 
         $finalScore = $this->clamp(array_sum($parts) / count($parts));
 
-        return ['score' => $finalScore, 'notes' => $notes];
+        $avgDailyValue = array_sum(array_map(
+            fn ($d) => ($d['close'] ?? 0) * ($d['volume'] ?? 0),
+            $recent
+        )) / count($recent);
+        $threshold = self::LOW_LIQUIDITY_THRESHOLD[$currency] ?? self::LOW_LIQUIDITY_THRESHOLD['USD'];
+        $lowLiquidity = $avgDailyValue < $threshold;
+        if ($lowLiquidity) {
+            $notes[] = 'Likuiditas rendah (rata-rata transaksi harian '.$this->money($avgDailyValue, $currency).
+                ') — sinyal teknikal (RSI/MACD/momentum) kurang bisa diandalkan pada saham dengan volume tipis.';
+        }
+
+        return ['score' => $finalScore, 'notes' => $notes, 'lowLiquidity' => $lowLiquidity];
     }
 
     // A separate, longer window from scoreMomentum() — used only for the "longterm" horizon, so a

@@ -42,6 +42,9 @@ class StockAnalysisService
             // Captured so the backtest (BacktestService) can later compute a forward return
             // without re-fetching history from generation time.
             'priceAtGeneration' => $data['priceSeries'][0]['close'] ?? null,
+            // Lets the backtest tell "this call was right because the whole market rallied" apart
+            // from "this call was right on its own merits" — see BacktestService's regime check.
+            'benchmarkPriceAtGeneration' => $data['benchmarkSeries'][0]['close'] ?? null,
         ], $analysis);
     }
 

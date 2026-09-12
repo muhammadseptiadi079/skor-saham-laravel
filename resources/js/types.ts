@@ -55,6 +55,7 @@ export interface AnalysisResult {
         ownership: OwnershipSubScore;
     };
     dataCompleteness: DataCompleteness;
+    lowLiquidity: boolean;
     longterm: HorizonResult;
     trading: HorizonResult;
     disclaimer: string;
@@ -133,6 +134,7 @@ export interface AccuracyResponse {
     accuracy: number | null;
     avgForwardReturnPct: number | null;
     byLabel: AccuracyByLabel[];
+    byMarketRegime: AccuracyByLabel[];
     subScoreAccuracy: SubScoreAccuracy[];
 }
 

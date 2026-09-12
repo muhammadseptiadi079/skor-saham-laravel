@@ -63,6 +63,14 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                         <GaugeIcon className="h-3 w-3" />
                         {result.dataCompleteness.available}/{result.dataCompleteness.total} sub-skor tersedia
                     </span>
+                    {result.lowLiquidity && (
+                        <span
+                            className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-[10px] font-semibold whitespace-nowrap text-amber-300"
+                            title="Volume transaksi harian tipis — sinyal teknikal kurang bisa diandalkan"
+                        >
+                            Likuiditas rendah
+                        </span>
+                    )}
                 </div>
             </div>
 

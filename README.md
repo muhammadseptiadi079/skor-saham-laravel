@@ -238,6 +238,37 @@ Empat perubahan lanjutan (masih 100% rule-based, masih tanpa ML):
   konsisten performanya jelek selama berbulan-bulan, itu baru alasan kuat
   untuk mempertimbangkan ubah bobotnya secara manual.
 
+Empat perubahan lagi (round ketiga, masih rule-based/tanpa ML):
+
+- **Target harga analis** (`analystTargetPrice`) — sudah lama di-fetch dari
+  Yahoo (`financialData.targetMeanPrice`) dan Alpha Vantage
+  (`AnalystTargetPrice`) tapi belum pernah dipakai, seperti PEG dulu. Kalau
+  target konsensus analis jauh di atas harga sekarang, itu sinyal positif
+  tambahan di sub-skor fundamental — datanya "gratis" (sudah ikut di request
+  yang sama, tidak ada panggilan API tambahan).
+- **Peringatan likuiditas rendah** — kalau rata-rata nilai transaksi harian
+  20 hari terakhir di bawah ambang (Rp1 miliar untuk IDX, $1 juta untuk
+  global), muncul catatan "Likuiditas rendah" di sub-skor momentum plus
+  badge di header hasil analisis. Ini **cuma peringatan, tidak mengubah
+  skor** — RSI/MACD/momentum memang kurang bisa diandalkan di saham
+  bervolume tipis, jadi user perlu tahu, bukan diam-diam dikoreksi.
+- **Peringatan mendekati tanggal laporan keuangan** — kalau laporan
+  keuangan berikutnya diperkirakan dalam ≤14 hari, muncul catatan risiko
+  (volatilitas bisa naik menjelang rilis). **Cuma untuk saham IDX** —
+  datanya "menumpang" di request Yahoo `quoteSummary` yang sudah ada
+  (modul `calendarEvents`, tanpa biaya API tambahan). Untuk saham global
+  sengaja di-skip: Alpha Vantage butuh panggilan `EARNINGS_CALENDAR`
+  terpisah per ticker, dan kuota 25 request/hari sudah sangat ketat —
+  menambah 1 panggilan lagi per analisis global tidak sepadan.
+- **Akurasi dipecah per kondisi pasar** (bagian "Akurasi per Kondisi
+  Pasar" di panel Akurasi Historis) — setiap baris riwayat yang dievaluasi
+  kini juga ditandai `bull`/`bear`/`sideways` berdasarkan pergerakan
+  benchmark (IHSG/S&P 500) di periode yang sama (`BacktestService`). Supaya
+  ketahuan apakah sinyal "Buy" benar-benar bagus, atau cuma kelihatan bagus
+  karena kebetulan seluruh pasar lagi naik. Baris riwayat lama (sebelum
+  kolom ini ada) otomatis dikecualikan dari breakdown ini, tapi tetap
+  masuk hitungan akurasi keseluruhan.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -311,7 +342,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 47 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 59 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

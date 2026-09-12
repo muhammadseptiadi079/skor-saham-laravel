@@ -53,6 +53,39 @@ class AccuracyControllerTest extends TestCase
         $this->assertEquals(100.0, $byLabel['Sell']['accuracy']);
     }
 
+    public function test_aggregates_accuracy_by_market_regime(): void
+    {
+        AnalysisHistory::create([
+            'ticker' => 'A', 'market' => 'idx', 'trading_label' => 'Buy',
+            'outcome_correct' => true, 'forward_return' => 0.08, 'market_regime' => 'bull', 'generated_at' => now(),
+        ]);
+        AnalysisHistory::create([
+            'ticker' => 'B', 'market' => 'idx', 'trading_label' => 'Buy',
+            'outcome_correct' => true, 'forward_return' => 0.03, 'market_regime' => 'bull', 'generated_at' => now(),
+        ]);
+        AnalysisHistory::create([
+            'ticker' => 'C', 'market' => 'idx', 'trading_label' => 'Buy',
+            'outcome_correct' => false, 'forward_return' => -0.02, 'market_regime' => 'bear', 'generated_at' => now(),
+        ]);
+        // Graded before market_regime existed -> excluded from this breakdown, still counts overall.
+        AnalysisHistory::create([
+            'ticker' => 'D', 'market' => 'idx', 'trading_label' => 'Buy',
+            'outcome_correct' => true, 'forward_return' => 0.01, 'market_regime' => null, 'generated_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/accuracy');
+
+        $response->assertOk();
+        $response->assertJsonPath('sampleSize', 4);
+
+        $byRegime = collect($response->json('byMarketRegime'))->keyBy('label');
+        $this->assertSame(2, $byRegime['Pasar Naik']['sampleSize']);
+        $this->assertEquals(100.0, $byRegime['Pasar Naik']['accuracy']);
+        $this->assertSame(1, $byRegime['Pasar Turun']['sampleSize']);
+        $this->assertEquals(0.0, $byRegime['Pasar Turun']['accuracy']);
+        $this->assertCount(2, $byRegime); // the null-regime row must not appear as a group
+    }
+
     public function test_filters_by_market(): void
     {
         AnalysisHistory::create([

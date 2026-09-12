@@ -73,7 +73,9 @@ class YahooFinanceService
         try {
             $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
                 ->get("https://query1.finance.yahoo.com/v10/finance/quoteSummary/{$symbol}", [
-                    'modules' => 'financialData,defaultKeyStatistics,summaryDetail,summaryProfile',
+                    // calendarEvents rides along on this same request (no extra HTTP call) to get
+                    // the next earnings date — see ScoringEngine's earnings-proximity note.
+                    'modules' => 'financialData,defaultKeyStatistics,summaryDetail,summaryProfile,calendarEvents',
                 ])->json();
 
             $result = $data['quoteSummary']['result'][0] ?? null;
@@ -85,6 +87,7 @@ class YahooFinanceService
             $stats = $result['defaultKeyStatistics'] ?? [];
             $summary = $result['summaryDetail'] ?? [];
             $profile = $result['summaryProfile'] ?? [];
+            $earningsDateRaw = $result['calendarEvents']['earnings']['earningsDate'][0]['raw'] ?? null;
 
             return [
                 'peRatio' => $this->raw($summary['trailingPE'] ?? null),
@@ -95,6 +98,8 @@ class YahooFinanceService
                 'debtToEquity' => $this->raw($fin['debtToEquity'] ?? null),
                 'returnOnEquity' => $this->raw($fin['returnOnEquity'] ?? null),
                 'marketCap' => $this->raw($stats['marketCap'] ?? ($summary['marketCap'] ?? null)),
+                'analystTargetPrice' => $this->raw($fin['targetMeanPrice'] ?? null),
+                'nextEarningsDate' => $earningsDateRaw ? gmdate('Y-m-d', $earningsDateRaw) : null,
                 // Display-only context (see ScoringEngine::scoreFundamentals) — not scored, since
                 // there's no free source for sector-average ratios to compare it against.
                 'sector' => $profile['sector'] ?? null,

@@ -93,6 +93,84 @@ class BacktestServiceTest extends TestCase
         $this->assertNull(AnalysisHistory::first()->evaluated_at);
     }
 
+    private function fakeYahooChartWithBenchmark(float $tickerClose, float $benchmarkClose): void
+    {
+        Http::fake([
+            'https://query1.finance.yahoo.com/v8/finance/chart/*' => function ($request) use ($tickerClose, $benchmarkClose) {
+                $isBenchmark = str_contains($request->url(), 'JKSE');
+                $close = $isBenchmark ? $benchmarkClose : $tickerClose;
+
+                return Http::response([
+                    'chart' => ['result' => [[
+                        'meta' => ['currency' => 'IDR', 'symbol' => 'X'],
+                        'timestamp' => [1_700_000_000],
+                        'indicators' => ['quote' => [['close' => [$close], 'volume' => [1000]]]],
+                    ]]],
+                ]);
+            },
+        ]);
+    }
+
+    public function test_market_regime_classified_bull_when_benchmark_rallied(): void
+    {
+        AnalysisHistory::create([
+            'ticker' => 'BBCA', 'market' => 'idx', 'currency' => 'IDR',
+            'trading_label' => 'Buy', 'trading_score' => 0.3,
+            'price_at_generation' => 3000, 'benchmark_price_at_generation' => 100,
+            'evaluation_horizon_days' => 20, 'generated_at' => now()->subDays(30),
+        ]);
+        $this->fakeYahooChartWithBenchmark(tickerClose: 3300, benchmarkClose: 110); // benchmark +10%
+
+        app(BacktestService::class)->evaluate(minAgeDays: 28, limit: 50);
+
+        $this->assertSame('bull', AnalysisHistory::first()->market_regime);
+    }
+
+    public function test_market_regime_classified_bear_when_benchmark_fell(): void
+    {
+        AnalysisHistory::create([
+            'ticker' => 'BBCA', 'market' => 'idx', 'currency' => 'IDR',
+            'trading_label' => 'Sell', 'trading_score' => -0.3,
+            'price_at_generation' => 3000, 'benchmark_price_at_generation' => 100,
+            'evaluation_horizon_days' => 20, 'generated_at' => now()->subDays(30),
+        ]);
+        $this->fakeYahooChartWithBenchmark(tickerClose: 2700, benchmarkClose: 90); // benchmark -10%
+
+        app(BacktestService::class)->evaluate(minAgeDays: 28, limit: 50);
+
+        $this->assertSame('bear', AnalysisHistory::first()->market_regime);
+    }
+
+    public function test_market_regime_classified_sideways_when_benchmark_flat(): void
+    {
+        AnalysisHistory::create([
+            'ticker' => 'BBCA', 'market' => 'idx', 'currency' => 'IDR',
+            'trading_label' => 'Buy', 'trading_score' => 0.3,
+            'price_at_generation' => 3000, 'benchmark_price_at_generation' => 100,
+            'evaluation_horizon_days' => 20, 'generated_at' => now()->subDays(30),
+        ]);
+        $this->fakeYahooChartWithBenchmark(tickerClose: 3300, benchmarkClose: 101); // benchmark +1%
+
+        app(BacktestService::class)->evaluate(minAgeDays: 28, limit: 50);
+
+        $this->assertSame('sideways', AnalysisHistory::first()->market_regime);
+    }
+
+    public function test_market_regime_null_when_benchmark_price_at_generation_missing(): void
+    {
+        AnalysisHistory::create([
+            'ticker' => 'BBCA', 'market' => 'idx', 'currency' => 'IDR',
+            'trading_label' => 'Buy', 'trading_score' => 0.3,
+            'price_at_generation' => 3000, 'benchmark_price_at_generation' => null,
+            'evaluation_horizon_days' => 20, 'generated_at' => now()->subDays(30),
+        ]);
+        $this->fakeYahooChart(3300);
+
+        app(BacktestService::class)->evaluate(minAgeDays: 28, limit: 50);
+
+        $this->assertNull(AnalysisHistory::first()->market_regime);
+    }
+
     public function test_price_fetch_failure_is_skipped_and_left_for_retry(): void
     {
         AnalysisHistory::create([

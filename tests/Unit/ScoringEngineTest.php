@@ -196,6 +196,38 @@ class ScoringEngineTest extends TestCase
         $this->assertStringNotContainsString('IHSG', $notes);
     }
 
+    public function test_low_liquidity_flag_set_when_average_daily_value_is_tiny(): void
+    {
+        // Rp1,000 close * 1,000 shares/day = Rp1,000,000/day, far below the Rp1B IDR threshold.
+        $series = array_fill(0, 20, ['close' => 1000, 'volume' => 1000]);
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertTrue($result['lowLiquidity']);
+        $this->assertStringContainsString('Likuiditas rendah', implode(' ', $result['subScores']['momentum']['notes']));
+    }
+
+    public function test_low_liquidity_flag_not_set_for_heavily_traded_stock(): void
+    {
+        // Rp1,000 close * 10,000,000 shares/day = Rp10B/day, well above the threshold.
+        $series = array_fill(0, 20, ['close' => 1000, 'volume' => 10_000_000]);
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertFalse($result['lowLiquidity']);
+        $this->assertStringNotContainsString('Likuiditas rendah', implode(' ', $result['subScores']['momentum']['notes']));
+    }
+
+    public function test_low_liquidity_uses_usd_threshold_for_global_market(): void
+    {
+        // $10 close * 1,000 shares/day = $10,000/day, below the $1M USD threshold.
+        $series = array_fill(0, 20, ['close' => 10, 'volume' => 1000]);
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'USD');
+
+        $this->assertTrue($result['lowLiquidity']);
+    }
+
     public function test_long_term_trend_is_null_below_60_days_of_history(): void
     {
         $series = array_fill(0, 20, ['close' => 100, 'volume' => 1000]);
@@ -240,6 +272,44 @@ class ScoringEngineTest extends TestCase
 
         $this->assertLessThan(0, $result['subScores']['momentum']['score']);
         $this->assertGreaterThan(0, $result['subScores']['momentumLongTerm']['score']);
+    }
+
+    public function test_analyst_target_price_above_current_price_scores_positive(): void
+    {
+        $series = [['close' => 100, 'volume' => 1000]]; // just needs [0]['close'] as "current price"
+
+        $result = $this->engine->buildAnalysis(['analystTargetPrice' => 130], null, $series, null, 'USD');
+
+        $this->assertGreaterThan(0, $result['subScores']['fundamentals']['score']);
+        $this->assertStringContainsString('Target harga analis $130.00', $result['subScores']['fundamentals']['notes'][0]);
+        $this->assertStringContainsString('naik 30.0%', $result['subScores']['fundamentals']['notes'][0]);
+    }
+
+    public function test_analyst_target_price_below_current_price_scores_negative(): void
+    {
+        $series = [['close' => 100, 'volume' => 1000]];
+
+        $result = $this->engine->buildAnalysis(['analystTargetPrice' => 70], null, $series, null, 'USD');
+
+        $this->assertLessThan(0, $result['subScores']['fundamentals']['score']);
+    }
+
+    public function test_earnings_within_14_days_adds_a_risk_note(): void
+    {
+        $soon = date('Y-m-d', strtotime('+5 days'));
+
+        $result = $this->engine->buildAnalysis(['nextEarningsDate' => $soon], null, null, null, 'IDR');
+
+        $this->assertStringContainsString('Laporan keuangan berikutnya', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_earnings_far_away_does_not_add_a_risk_note(): void
+    {
+        $farAway = date('Y-m-d', strtotime('+60 days'));
+
+        $result = $this->engine->buildAnalysis(['nextEarningsDate' => $farAway, 'pegRatio' => 0.8], null, null, null, 'IDR');
+
+        $this->assertStringNotContainsString('Laporan keuangan', implode(' ', $result['subScores']['fundamentals']['notes']));
     }
 
     public function test_data_completeness_counts_available_sub_scores(): void

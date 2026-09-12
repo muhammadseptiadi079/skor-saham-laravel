@@ -37,6 +37,7 @@ class AlphaVantageService
             'debtToEquity' => null, // not directly provided by OVERVIEW
             'returnOnEquity' => $this->toNum($data['ReturnOnEquityTTM'] ?? null),
             'marketCap' => $this->toNum($data['MarketCapitalization'] ?? null),
+            'analystTargetPrice' => $this->toNum($data['AnalystTargetPrice'] ?? null),
             'sector' => $data['Sector'] ?? null,
         ];
     }
