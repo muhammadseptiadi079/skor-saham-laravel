@@ -51,12 +51,13 @@ class AlphaVantageService
             'apikey' => $this->apiKey(),
         ])->json();
 
-        if (empty($data['feed']) || !is_array($data['feed'])) {
+        if (empty($data['feed']) || ! is_array($data['feed'])) {
             return null;
         }
 
         return array_map(function ($item) use ($ticker) {
             $match = collect($item['ticker_sentiment'] ?? [])->firstWhere('ticker', $ticker);
+
             return [
                 'title' => $item['title'] ?? '',
                 'url' => $item['url'] ?? null,
@@ -81,7 +82,7 @@ class AlphaVantageService
         ])->json();
 
         $series = $data['Time Series (Daily)'] ?? null;
-        if (!$series) {
+        if (! $series) {
             return null;
         }
 
@@ -95,6 +96,42 @@ class AlphaVantageService
         }
 
         usort($rows, fn ($a, $b) => strcmp($b['date'], $a['date'])); // newest first
+
+        return $rows;
+    }
+
+    // Upcoming IPOs (mostly US-listed). Real, documented, free endpoint — unlike the other
+    // functions here it returns CSV, not JSON. https://www.alphavantage.co/documentation/#ipo-calendar
+    public function getIpoCalendar(): array
+    {
+        $csv = Http::get(self::BASE, [
+            'function' => 'IPO_CALENDAR',
+            'apikey' => $this->apiKey(),
+        ])->body();
+
+        $lines = array_values(array_filter(array_map('trim', explode("\n", $csv))));
+        if (count($lines) < 2) {
+            return [];
+        }
+
+        $header = str_getcsv(array_shift($lines));
+        $rows = [];
+        foreach ($lines as $line) {
+            $fields = str_getcsv($line);
+            if (count($fields) !== count($header)) {
+                continue;
+            }
+            $row = array_combine($header, $fields);
+            $rows[] = [
+                'ticker' => $row['symbol'] ?? null,
+                'companyName' => $row['name'] ?? ($row['symbol'] ?? 'Unknown'),
+                'ipoDate' => $row['ipoDate'] ?? null,
+                'priceRange' => isset($row['priceRangeLow'], $row['priceRangeHigh'])
+                    ? "{$row['priceRangeLow']}-{$row['priceRangeHigh']} ".($row['currency'] ?? 'USD')
+                    : null,
+            ];
+        }
+
         return $rows;
     }
 
@@ -103,6 +140,7 @@ class AlphaVantageService
         if ($v === null || $v === '') {
             return null;
         }
+
         return is_numeric($v) ? (float) $v : null;
     }
 }

@@ -36,6 +36,7 @@ class SentimentService
                 $score -= 1;
             }
         }
+
         return max(-1, min(1, $score));
     }
 
@@ -44,8 +45,10 @@ class SentimentService
         if (count($articles) === 0) {
             return [];
         }
+
         return array_map(function ($a) {
             $a['sentimentScore'] = $this->scoreHeadline($a['title']);
+
             return $a;
         }, $articles);
     }

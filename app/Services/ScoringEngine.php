@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\TechnicalIndicators;
+
 // Rule-based scoring engine. Every sub-score is in the range [-1, 1] and every step is
 // explainable — no black box. This is a decision-support heuristic, not a real predictor:
 // financial markets are not reliably predictable, and this tool should never be read as one.
@@ -56,15 +58,14 @@ class ScoringEngine
             ],
             'longterm' => ['score' => $longtermScore, 'label' => $this->labelFor($longtermScore)],
             'trading' => ['score' => $tradingScore, 'label' => $this->labelFor($tradingScore)],
-            'disclaimer' =>
-                'Ini analisis berbasis aturan sederhana (bukan prediksi yang terjamin akurat). ' .
+            'disclaimer' => 'Ini analisis berbasis aturan sederhana (bukan prediksi yang terjamin akurat). '.
                 'Gunakan sebagai salah satu bahan pertimbangan, bukan satu-satunya dasar keputusan investasi/trading.',
         ];
     }
 
     private function scoreFundamentals(?array $f): array
     {
-        if (!$f) {
+        if (! $f) {
             return ['score' => null, 'notes' => ['Data fundamental tidak tersedia.']];
         }
 
@@ -99,31 +100,32 @@ class ScoringEngine
             $v = $f['peRatio'];
             $s = $v <= 0 ? -1 : ($v < 15 ? 1 : ($v < 25 ? 0.3 : ($v < 40 ? -0.3 : -1)));
             $parts[] = $s;
-            $notes[] = 'P/E ' . number_format($v, 1) . " ({$this->describe($s)})";
+            $notes[] = 'P/E '.number_format($v, 1)." ({$this->describe($s)})";
         }
         if ($this->isNum($f['debtToEquity'] ?? null)) {
             $v = $f['debtToEquity'];
             $s = $v < 0.5 ? 0.5 : ($v < 1.5 ? 0 : -0.5);
             $parts[] = $s;
-            $notes[] = 'Debt-to-equity ' . number_format($v, 2) . " ({$this->describe($s)})";
+            $notes[] = 'Debt-to-equity '.number_format($v, 2)." ({$this->describe($s)})";
         }
 
         if (count($parts) === 0) {
             return ['score' => null, 'notes' => ['Tidak ada rasio fundamental yang bisa dibaca.']];
         }
         $score = $this->clamp(array_sum($parts) / count($parts));
+
         return ['score' => $score, 'notes' => $notes];
     }
 
     private function scoreMomentum(?array $series): array
     {
-        if (!$series || count($series) < 20) {
+        if (! $series || count($series) < 20) {
             return ['score' => null, 'notes' => ['Data harga/volume tidak cukup (butuh minimal 20 hari).']];
         }
         $recent = array_slice($series, 0, 20); // newest first
         $closeNow = $recent[0]['close'] ?? null;
         $close20dAgo = $recent[19]['close'] ?? null;
-        if (!$closeNow || !$close20dAgo) {
+        if (! $closeNow || ! $close20dAgo) {
             return ['score' => null, 'notes' => ['Data harga tidak lengkap.']];
         }
 
@@ -151,8 +153,54 @@ class ScoringEngine
         }
 
         $arah = $momentum >= 0 ? 'naik' : 'turun';
+        $parts = [$this->clamp($score)];
         $notes = ["Harga {$arah} {$this->pct(abs($momentum))} dalam ~20 hari perdagangan, {$volumeNote} ({$this->describe($score)})"];
-        return ['score' => $this->clamp($score), 'notes' => $notes];
+
+        // Technical indicators computed from as much history as the price series provides.
+        // Each is optional — quietly skipped when there isn't enough history for it yet.
+        $closesChrono = array_values(array_filter(
+            array_reverse(array_column($series, 'close')),
+            fn ($c) => $c !== null
+        ));
+
+        $rsi = TechnicalIndicators::rsi($closesChrono, 14);
+        if ($rsi !== null) {
+            if ($rsi >= 70) {
+                $s = -0.4;
+                $desc = 'jenuh beli / overbought — waspada potensi koreksi';
+            } elseif ($rsi <= 30) {
+                $s = 0.4;
+                $desc = 'jenuh jual / oversold — potensi rebound';
+            } else {
+                $s = ($rsi - 50) / 50 * 0.3;
+                $desc = $rsi >= 50 ? 'momentum naik moderat' : 'momentum turun moderat';
+            }
+            $parts[] = $this->clamp($s);
+            $notes[] = 'RSI(14) '.number_format($rsi, 1)." ({$desc})";
+        }
+
+        $sma20 = TechnicalIndicators::sma($closesChrono, 20);
+        $sma50 = TechnicalIndicators::sma($closesChrono, 50);
+        if ($sma20 !== null && $sma50 !== null) {
+            $bullish = $sma20 > $sma50;
+            $parts[] = $bullish ? 0.5 : -0.5;
+            $notes[] = $bullish
+                ? 'SMA20 di atas SMA50 (golden cross — tren jangka menengah naik)'
+                : 'SMA20 di bawah SMA50 (death cross — tren jangka menengah turun)';
+        }
+
+        $macd = TechnicalIndicators::macd($closesChrono);
+        if ($macd !== null) {
+            $bullish = $macd['histogram'] > 0;
+            $parts[] = $bullish ? 0.4 : -0.4;
+            $notes[] = $bullish
+                ? 'MACD di atas garis sinyal (momentum bullish)'
+                : 'MACD di bawah garis sinyal (momentum bearish)';
+        }
+
+        $finalScore = $this->clamp(array_sum($parts) / count($parts));
+
+        return ['score' => $finalScore, 'notes' => $notes];
     }
 
     private function scoreNews(?float $newsScoreRaw, int $articleCount): array
@@ -161,6 +209,7 @@ class ScoringEngine
             return ['score' => null, 'notes' => ['Tidak ada berita relevan ditemukan.']];
         }
         $score = $this->clamp($newsScoreRaw);
+
         return ['score' => $score, 'notes' => ["Sentimen rata-rata dari {$articleCount} berita: {$this->describe($score)}"]];
     }
 
@@ -200,7 +249,7 @@ class ScoringEngine
         $score = $this->clamp($score);
 
         $notes = [
-            "{$buyers} insider/pemilik membeli senilai {$this->money($buyValue, $currency)}, " .
+            "{$buyers} insider/pemilik membeli senilai {$this->money($buyValue, $currency)}, ".
                 "{$sellers} menjual senilai {$this->money($sellValue, $currency)} → {$this->describe($score)}",
         ];
         if ($buyers >= 3 && $score > 0) {
@@ -222,16 +271,17 @@ class ScoringEngine
     {
         $isIdr = $currency === 'IDR';
         $symbol = $isIdr ? 'Rp' : '$';
-        if (!$v) {
+        if (! $v) {
             return "{$symbol}0";
         }
         if ($v >= 1_000_000_000) {
-            return $symbol . number_format($v / 1_000_000_000, 1) . ($isIdr ? ' miliar' : 'B');
+            return $symbol.number_format($v / 1_000_000_000, 1).($isIdr ? ' miliar' : 'B');
         }
         if ($v >= 1_000_000) {
-            return $symbol . number_format($v / 1_000_000, 1) . ($isIdr ? ' juta' : 'M');
+            return $symbol.number_format($v / 1_000_000, 1).($isIdr ? ' juta' : 'M');
         }
-        return $symbol . number_format(round($v), 0, ',', '.');
+
+        return $symbol.number_format(round($v), 0, ',', '.');
     }
 
     private function combine(array $subScores, string $horizon): ?float
@@ -249,6 +299,7 @@ class ScoringEngine
         if ($weightTotal === 0) {
             return null;
         }
+
         return $this->clamp($weightedSum / $weightTotal);
     }
 
@@ -269,6 +320,7 @@ class ScoringEngine
         if ($score > -0.5) {
             return 'Sell';
         }
+
         return 'Strong Sell';
     }
 
@@ -284,7 +336,7 @@ class ScoringEngine
 
     private function pct(float $v): string
     {
-        return number_format($v * 100, 1) . '%';
+        return number_format($v * 100, 1).'%';
     }
 
     private function describe(float $s): string
@@ -301,6 +353,7 @@ class ScoringEngine
         if ($s > -0.5) {
             return 'negatif';
         }
+
         return 'sangat negatif';
     }
 }

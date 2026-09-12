@@ -2,39 +2,29 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\AlphaVantageService;
-use App\Services\GoogleNewsRssService;
-use App\Services\ScoringEngine;
-use App\Services\SecEdgarService;
-use App\Services\SentimentService;
-use App\Services\YahooFinanceService;
+use App\Models\AnalysisHistory;
+use App\Services\StockAnalysisService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class AnalyzeController extends Controller
 {
     public function __construct(
-        private AlphaVantageService $alphaVantage,
-        private YahooFinanceService $yahooFinance,
-        private GoogleNewsRssService $googleNews,
-        private SentimentService $sentiment,
-        private SecEdgarService $secEdgar,
-        private ScoringEngine $scoringEngine,
-    ) {
-    }
+        private StockAnalysisService $analysisService,
+    ) {}
 
     public function analyze(Request $request)
     {
         $ticker = $request->query('ticker');
         $market = $request->query('market');
 
-        if (!$ticker || !$market) {
+        if (! $ticker || ! $market) {
             return response()->json([
                 'error' => 'bad_request',
                 'message' => 'Parameter ticker dan market wajib diisi.',
             ], 400);
         }
-        if (!in_array($market, ['idx', 'global'], true)) {
+        if (! in_array($market, ['idx', 'global'], true)) {
             return response()->json([
                 'error' => 'bad_request',
                 'message' => 'market harus "idx" atau "global".',
@@ -42,24 +32,13 @@ class AnalyzeController extends Controller
         }
 
         try {
-            $data = $market === 'idx' ? $this->analyzeIdx($ticker) : $this->analyzeGlobal($ticker);
+            $analysis = $this->analysisService->analyze($ticker, $market);
+            $this->saveHistory($analysis);
 
-            $analysis = $this->scoringEngine->buildAnalysis(
-                $data['fundamentals'],
-                $data['newsArticles'],
-                $data['priceSeries'],
-                $data['ownershipTransactions'],
-                $data['currency'],
-            );
-
-            return response()->json(array_merge([
-                'ticker' => strtoupper($ticker),
-                'market' => $market,
-                'name' => $data['name'] ?? strtoupper($ticker),
-                'generatedAt' => now()->toIso8601String(),
-            ], $analysis));
+            return response()->json($analysis);
         } catch (\Throwable $e) {
-            Log::error('Analyze error: ' . $e->getMessage());
+            Log::error('Analyze error: '.$e->getMessage());
+
             return response()->json([
                 'error' => 'upstream_error',
                 'message' => 'Gagal mengambil data dari sumber eksternal. Coba lagi sebentar lagi, atau cek koneksi internet.',
@@ -67,53 +46,24 @@ class AnalyzeController extends Controller
         }
     }
 
-    private function analyzeGlobal(string $ticker): array
-    {
-        $overview = $this->safe(fn () => $this->alphaVantage->getOverview($ticker));
-        $newsArticles = $this->safe(fn () => $this->alphaVantage->getNewsSentiment($ticker)) ?? [];
-        $priceSeries = $this->safe(fn () => $this->alphaVantage->getDailyTimeSeries($ticker));
-        $insiderTx = $this->safe(fn () => $this->secEdgar->getInsiderTransactions($ticker));
-
-        return [
-            'name' => $overview['name'] ?? null,
-            'fundamentals' => $overview,
-            'newsArticles' => $newsArticles,
-            'priceSeries' => $priceSeries,
-            'ownershipTransactions' => $insiderTx,
-            'currency' => 'USD',
-        ];
-    }
-
-    private function analyzeIdx(string $ticker): array
-    {
-        $companyQuery = str_replace('.JK', '', $ticker);
-
-        $fundamentals = $this->safe(fn () => $this->yahooFinance->getFundamentals($ticker));
-        $chart = $this->safe(fn () => $this->yahooFinance->getChart($ticker));
-        $newsRaw = $this->safe(fn () => $this->googleNews->getNews("saham {$companyQuery}")) ?? [];
-        $insiderTx = $this->safe(fn () => $this->yahooFinance->getInsiderTransactions($ticker));
-
-        $scored = $this->sentiment->scoreArticles($newsRaw);
-
-        return [
-            'name' => $chart['name'] ?? $this->yahooFinance->normalizeIdxTicker($ticker),
-            'fundamentals' => $fundamentals,
-            'newsArticles' => $scored,
-            'priceSeries' => $chart['series'] ?? null,
-            'ownershipTransactions' => $insiderTx,
-            'currency' => 'IDR',
-        ];
-    }
-
-    // Mirrors the Node version's Promise.allSettled behavior: one failing data source
-    // degrades that sub-score to "unavailable" instead of failing the whole analysis.
-    private function safe(\Closure $fn)
+    // Best-effort: a history-write failure should never take down the analyze response.
+    private function saveHistory(array $analysis): void
     {
         try {
-            return $fn();
+            AnalysisHistory::create([
+                'ticker' => $analysis['ticker'],
+                'market' => $analysis['market'],
+                'name' => $analysis['name'] ?? null,
+                'currency' => $analysis['currency'] ?? null,
+                'longterm_score' => $analysis['longterm']['score'] ?? null,
+                'longterm_label' => $analysis['longterm']['label'] ?? null,
+                'trading_score' => $analysis['trading']['score'] ?? null,
+                'trading_label' => $analysis['trading']['label'] ?? null,
+                'sub_scores' => $analysis['subScores'] ?? null,
+                'generated_at' => $analysis['generatedAt'],
+            ]);
         } catch (\Throwable $e) {
-            Log::warning('Data source fetch failed: ' . $e->getMessage());
-            return null;
+            Log::warning('Failed to save analysis history: '.$e->getMessage());
         }
     }
 }

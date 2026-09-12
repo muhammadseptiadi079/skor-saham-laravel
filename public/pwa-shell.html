@@ -72,6 +72,40 @@
       </div>
 
       <p class="disclaimer" id="disclaimer"></p>
+
+      <button type="button" id="watchlist-add-btn" class="secondary-btn" hidden>☆ Tambah ke watchlist</button>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Watchlist</h2>
+      </div>
+      <ul id="watchlist-list" class="chip-list"></ul>
+      <p id="watchlist-empty" class="muted">Belum ada saham di watchlist.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Potensi Naik (Screener)</h2>
+        <select id="screener-market">
+          <option value="idx">IDX</option>
+          <option value="global">Global</option>
+        </select>
+      </div>
+      <p class="hint">
+        Berdasarkan skor cache dari watchlist &amp; daftar kurasi (LQ45/blue-chip), diperbarui
+        berkala &mdash; bukan hasil hitung langsung saat ini juga.
+      </p>
+      <ul id="screener-list" class="chip-list"></ul>
+      <p id="screener-empty" class="muted">Belum ada data screener. Jalankan <code>php artisan stocks:refresh-scores</code> di server dulu.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>IPO Terbaru</h2>
+      </div>
+      <ul id="ipo-list" class="chip-list"></ul>
+      <p id="ipo-empty" class="muted">Belum ada data IPO. Jalankan <code>php artisan stocks:refresh-ipo</code> di server dulu.</p>
     </section>
 
     <section class="history">

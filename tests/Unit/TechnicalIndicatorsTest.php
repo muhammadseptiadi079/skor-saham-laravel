@@ -1,0 +1,56 @@
+<?php
+
+namespace Tests\Unit;
+
+use App\Support\TechnicalIndicators;
+use PHPUnit\Framework\TestCase;
+
+class TechnicalIndicatorsTest extends TestCase
+{
+    public function test_sma_averages_the_last_n_closes(): void
+    {
+        $closes = range(1, 20); // 1..20, oldest first
+        $this->assertSame(15.5, TechnicalIndicators::sma($closes, 10));
+    }
+
+    public function test_sma_returns_null_when_not_enough_data(): void
+    {
+        $this->assertNull(TechnicalIndicators::sma([1, 2, 3], 10));
+    }
+
+    public function test_rsi_is_100_for_a_strictly_rising_series(): void
+    {
+        $closes = range(1, 30); // no losses at all
+        $this->assertSame(100.0, TechnicalIndicators::rsi($closes, 14));
+    }
+
+    public function test_rsi_is_0_for_a_strictly_falling_series(): void
+    {
+        $closes = range(30, 1); // no gains at all
+        $this->assertSame(0.0, TechnicalIndicators::rsi($closes, 14));
+    }
+
+    public function test_rsi_returns_null_when_not_enough_data(): void
+    {
+        $this->assertNull(TechnicalIndicators::rsi(range(1, 10), 14));
+    }
+
+    public function test_macd_returns_null_when_not_enough_data(): void
+    {
+        $this->assertNull(TechnicalIndicators::macd(range(1, 30)));
+    }
+
+    public function test_macd_returns_macd_signal_and_histogram_for_a_rising_series(): void
+    {
+        $closes = range(1, 60);
+        $result = TechnicalIndicators::macd($closes);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('macd', $result);
+        $this->assertArrayHasKey('signal', $result);
+        $this->assertArrayHasKey('histogram', $result);
+        // A steadily rising price: the fast EMA leads the slow EMA, so MACD is positive.
+        $this->assertGreaterThan(0, $result['macd']);
+        $this->assertEqualsWithDelta($result['macd'] - $result['signal'], $result['histogram'], 0.0001);
+    }
+}

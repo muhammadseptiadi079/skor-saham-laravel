@@ -11,6 +11,7 @@ class YahooFinanceService
     public function normalizeIdxTicker(string $ticker): string
     {
         $t = strtoupper(trim($ticker));
+
         return str_ends_with($t, '.JK') ? $t : "{$t}.JK";
     }
 
@@ -19,18 +20,20 @@ class YahooFinanceService
         $symbol = $this->normalizeIdxTicker($ticker);
         $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
             ->get("https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}", [
-                'range' => '3mo',
+                // 6mo gives enough daily bars for SMA50/MACD (needs 35-50+ closes), not just the
+                // 20-day momentum window.
+                'range' => '6mo',
                 'interval' => '1d',
             ])->json();
 
         $result = $data['chart']['result'][0] ?? null;
-        if (!$result) {
+        if (! $result) {
             return null;
         }
 
         $timestamps = $result['timestamp'] ?? [];
         $quote = $result['indicators']['quote'][0] ?? null;
-        if (!$quote) {
+        if (! $quote) {
             return null;
         }
 
@@ -68,7 +71,7 @@ class YahooFinanceService
                 ])->json();
 
             $result = $data['quoteSummary']['result'][0] ?? null;
-            if (!$result) {
+            if (! $result) {
                 return null;
             }
 
@@ -105,7 +108,7 @@ class YahooFinanceService
                 ])->json();
 
             $list = $data['quoteSummary']['result'][0]['insiderTransactions']['transactions'] ?? null;
-            if (!is_array($list) || count($list) === 0) {
+            if (! is_array($list) || count($list) === 0) {
                 return [];
             }
 
@@ -141,6 +144,7 @@ class YahooFinanceService
         if (is_array($field) && array_key_exists('raw', $field)) {
             return $field['raw'];
         }
+
         return is_numeric($field) ? (float) $field : null;
     }
 }

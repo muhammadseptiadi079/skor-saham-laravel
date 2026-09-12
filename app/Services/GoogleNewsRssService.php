@@ -22,7 +22,7 @@ class GoogleNewsRssService
         $rss = simplexml_load_string($xml);
         libxml_use_internal_errors($prevSetting);
 
-        if ($rss === false || !isset($rss->channel->item)) {
+        if ($rss === false || ! isset($rss->channel->item)) {
             return [];
         }
 

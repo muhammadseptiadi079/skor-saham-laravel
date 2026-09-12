@@ -26,6 +26,7 @@ class SecEdgarService
             foreach ($data as $entry) {
                 $map[strtoupper($entry['ticker'])] = str_pad((string) $entry['cik_str'], 10, '0', STR_PAD_LEFT);
             }
+
             return $map;
         });
     }
@@ -33,6 +34,7 @@ class SecEdgarService
     public function getCikForTicker(string $ticker): ?string
     {
         $map = $this->loadTickerCikMap();
+
         return $map[strtoupper($ticker)] ?? null;
     }
 
@@ -43,7 +45,7 @@ class SecEdgarService
             ->json();
 
         $recent = $data['filings']['recent'] ?? null;
-        if (!$recent) {
+        if (! $recent) {
             return [];
         }
 
@@ -60,6 +62,7 @@ class SecEdgarService
                 break;
             }
         }
+
         return $filings;
     }
 
@@ -67,6 +70,7 @@ class SecEdgarService
     {
         $accessionNoDashes = str_replace('-', '', $filing['accessionNumber']);
         $cikNum = (string) (int) $cik; // SEC archive paths use the un-padded CIK
+
         return "https://www.sec.gov/Archives/edgar/data/{$cikNum}/{$accessionNoDashes}/{$filing['primaryDocument']}";
     }
 
@@ -130,13 +134,14 @@ class SecEdgarService
                 'value' => $price !== null ? $shares * $price : null,
             ];
         }
+
         return $out;
     }
 
     public function getInsiderTransactions(string $ticker, int $limit = 10): ?array
     {
         $cik = $this->getCikForTicker($ticker);
-        if (!$cik) {
+        if (! $cik) {
             return null;
         }
 
@@ -156,6 +161,7 @@ class SecEdgarService
         }
 
         usort($all, fn ($a, $b) => strcmp($b['date'], $a['date'])); // newest first
+
         return $all;
     }
 }

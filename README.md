@@ -24,22 +24,40 @@ tambahan, bukan satu-satunya dasar keputusan.
   gratis, tanpa API key.
 - **Insider untuk saham IDX** kemungkinan besar "tidak tersedia" — memang
   keterbatasan data, bukan bug.
+- **Data IPO IDX** dari endpoint publik idx.co.id yang tidak resmi/belum
+  terverifikasi live (lihat bagian "Keterbatasan yang jujur" di bawah) —
+  bisa saja kosong atau perlu penyesuaian.
 
 ## Struktur proyek
 
 ```
 app/
-  Http/Controllers/AnalyzeController.php   endpoint GET /api/analyze
+  Http/Controllers/
+    AnalyzeController.php     endpoint GET /api/analyze
+    WatchlistController.php   endpoint /api/watchlist (list/add/remove)
+    HistoryController.php     endpoint GET /api/history
+    ScreenerController.php    endpoint GET /api/screener ("potensi naik")
+    IpoController.php         endpoint GET /api/ipo
   Services/
-    AlphaVantageService.php    sumber data pasar global
-    YahooFinanceService.php    sumber data pasar IDX (harga, volume, fundamental, insider)
-    GoogleNewsRssService.php   sumber berita IDX
-    SentimentService.php       skor sentimen berbasis kata kunci (IDX)
-    SecEdgarService.php        data insider Form 4 dari SEC (global)
-    ScoringEngine.php          logika penggabungan skor & label rekomendasi
+    StockAnalysisService.php  orkestrasi fetch + scoring untuk satu ticker (dipakai
+                               controller & command, supaya tidak duplikat logic)
+    AlphaVantageService.php   sumber data pasar global + IPO_CALENDAR
+    YahooFinanceService.php   sumber data pasar IDX (harga, volume, fundamental, insider)
+    GoogleNewsRssService.php  sumber berita IDX
+    SentimentService.php      skor sentimen berbasis kata kunci (IDX)
+    SecEdgarService.php       data insider Form 4 dari SEC (global)
+    IdxIpoService.php         data IPO IDX, best-effort/belum terverifikasi live
+    ScoringEngine.php         logika penggabungan skor & label rekomendasi
+  Support/
+    TechnicalIndicators.php   RSI, SMA, MACD — dipakai ScoringEngine untuk sub-skor momentum
+  Models/
+    WatchlistItem.php, AnalysisHistory.php, StockUniverseItem.php, IpoListing.php
+  Console/Commands/
+    RefreshStockScores.php    php artisan stocks:refresh-scores (isi screener)
+    RefreshIpoListings.php    php artisan stocks:refresh-ipo (isi data IPO)
 routes/
-  api.php   GET /api/analyze?ticker=&market=
-  web.php   GET /  -> menyajikan PWA (public/pwa-shell.html)
+  api.php   /api/analyze, /api/watchlist, /api/history, /api/screener, /api/ipo
+  console.php  jadwal harian untuk kedua command di atas
 public/
   pwa-shell.html, css/, js/, manifest.json, service-worker.js, icons/
 ```
@@ -52,6 +70,7 @@ composer install
 php artisan key:generate
 touch database/database.sqlite
 php artisan migrate
+php artisan db:seed        # isi daftar LQ45/blue-chip untuk screener
 php artisan serve
 ```
 
@@ -91,3 +110,83 @@ Sama seperti versi Node — lihat penjelasan lengkap di `readme.md` proyek
 Node (`stock-predictor-pwa`): 4 sub-skor (fundamental, berita, momentum &
 volume, kepemilikan & insider) digabung dengan bobot berbeda untuk horizon
 jangka panjang vs trading.
+
+Sub-skor **momentum & volume** sekarang juga memasukkan indikator teknikal
+standar (semua tetap rule-based & transparan, dihitung di
+`app/Support/TechnicalIndicators.php`):
+
+- **RSI(14)** — jenuh beli (≥70) dianggap sinyal waspada koreksi, jenuh jual
+  (≤30) dianggap potensi rebound.
+- **SMA20 vs SMA50** — "golden cross" (SMA20 di atas SMA50) dibaca bullish,
+  "death cross" sebaliknya. Butuh minimal 50 hari data harga.
+- **MACD(12,26,9)** — histogram positif (MACD di atas garis sinyal) dibaca
+  bullish. Butuh minimal 35 hari data harga.
+
+Indikator yang datanya belum cukup otomatis dilewati (tidak memaksakan nilai
+kosong), jadi sub-skor momentum tetap jalan walau baru punya 20 hari data.
+
+## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
+
+- **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
+  cuma IndexedDB di HP seperti riwayat lama), supaya screener tahu ticker
+  mana yang mau dipantau.
+- **Riwayat** (`/api/history`) — setiap kali `/api/analyze` dipanggil,
+  hasilnya otomatis tersimpan ke tabel `analysis_history`. Gagal simpan
+  tidak akan menggagalkan response analisa (best-effort).
+- **Screener "Potensi Naik"** (`/api/screener?market=idx|global`) —
+  menampilkan ticker dengan skor trading/longterm terakhir di atas ambang
+  "Buy" (≥0.15), diambil dari **cache** di `analysis_history`, bukan
+  dihitung langsung saat request (supaya tidak boros kuota Alpha Vantage).
+  Cache-nya diisi oleh:
+  ```
+  php artisan stocks:refresh-scores          # scan watchlist + daftar kurasi
+  php artisan stocks:refresh-scores --budget=10   # batasi request Alpha Vantage per run
+  ```
+  Dijadwalkan otomatis tiap hari jam 03:00 lewat `routes/console.php` (perlu
+  cron `* * * * * php artisan schedule:run` di server, atau `php artisan
+  schedule:work` saat development).
+- **Daftar kurasi** (`stock_universe_items`, diisi oleh
+  `StockUniverseSeeder`) — contoh saham LQ45 (IDX) dan blue-chip (global)
+  yang ikut di-screening selain watchlist milik user. LQ45 di-review IDX
+  tiap ~6 bulan, jadi daftar ini bisa saja tidak 100% akurat — sesuaikan
+  lewat tabel tersebut kalau perlu.
+- **IPO** (`/api/ipo?market=idx|global`) — IPO global dari Alpha Vantage
+  (`IPO_CALENDAR`, endpoint resmi & gratis), IPO IDX best-effort (lihat di
+  bawah). Diisi lewat:
+  ```
+  php artisan stocks:refresh-ipo
+  ```
+  Dijadwalkan otomatis tiap hari jam 04:00.
+
+## Keterbatasan yang jujur (baca sebelum lapor "kok kosong?")
+
+Sesi pengembangan ini berjalan di sandbox yang **memblokir semua akses
+jaringan keluar** (termasuk ke Yahoo Finance, Alpha Vantage, SEC EDGAR,
+Google News, dan idx.co.id) — jadi tidak ada satu pun panggilan HTTP nyata
+yang bisa diuji langsung selama menulis kode ini. Semua pengujian otomatis
+(`php artisan test`) memakai `Http::fake()` untuk mem-mock response setiap
+provider berdasarkan skema yang sudah didokumentasikan (Alpha Vantage, SEC)
+atau yang teramati sebelumnya (Yahoo, Google News RSS) — ini memverifikasi
+logic parsing & scoring, **bukan** bahwa endpoint live-nya masih persis
+sama hari ini.
+
+Yang paling perlu di-double-check begitu jalan di lingkungan dengan akses
+internet normal:
+
+- **`app/Services/IdxIpoService.php`** — endpoint yang dipakai
+  (`https://www.idx.co.id/primary/ListedCompany/GetIPO`) mengikuti pola
+  yang biasa dipakai situs IDX untuk widget listed-company mereka, tapi
+  **belum pernah berhasil di-hit dari sandbox ini**, jadi path atau nama
+  field JSON-nya bisa saja sudah berbeda. Kalau `php artisan
+  stocks:refresh-ipo` menghasilkan 0 entri IDX, cek response asli endpoint
+  tersebut (misal lewat `php artisan tinker` →
+  `Http::get(...)->body()`, atau lihat tab Network di browser saat buka
+  halaman IPO di idx.co.id) lalu sesuaikan `parseRows()` di file itu. Kode
+  ini didesain supaya gagal dengan aman (list kosong), tidak pernah bikin
+  aplikasi crash.
+- Endpoint Yahoo Finance, Alpha Vantage, dan SEC EDGAR yang sudah ada dari
+  sebelumnya juga tidak sempat diuji ulang secara live pada sesi ini —
+  kemungkinan besar masih jalan seperti biasa (tidak ada perubahan pada
+  cara memanggilnya, hanya `range` chart Yahoo yang diperpanjang dari 3
+  bulan ke 6 bulan agar cukup data untuk SMA50/MACD), tapi tetap sepadan
+  untuk di-smoke-test sekali di lokal.
