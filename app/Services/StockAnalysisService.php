@@ -63,6 +63,10 @@ class StockAnalysisService
             'pegRatioAtGeneration' => $data['fundamentals']['pegRatio'] ?? null,
             // Persisted so NewsVolumeService can build a per-ticker baseline for future analyses.
             'newsArticleCountAtGeneration' => $newsArticleCount,
+            // Persisted so SectorValuationService can also compare profitability (not just
+            // valuation) against other watchlist stocks in the same sector.
+            'profitMarginAtGeneration' => $data['fundamentals']['profitMargin'] ?? null,
+            'roeAtGeneration' => $data['fundamentals']['returnOnEquity'] ?? null,
         ], $analysis);
     }
 

@@ -86,7 +86,9 @@ class TechnicalIndicators
     // other point within $lookback days on both sides (swing low: strictly lower). A simple,
     // widely-used chartist heuristic for "where did price turn around before" — not a prediction
     // that it will turn around there again. Returns null if there isn't enough history yet.
-    public static function swingLevels(array $closesChrono, int $lookback = 3): ?array
+    // Keeps the index of each swing point (not just its price) so callers like divergence
+    // detection can look up what another series (e.g. RSI) was doing at that same point in time.
+    public static function swingPoints(array $closesChrono, int $lookback = 3): ?array
     {
         $n = count($closesChrono);
         if ($n < $lookback * 2 + 1) {
@@ -99,14 +101,66 @@ class TechnicalIndicators
             $window = array_slice($closesChrono, $i - $lookback, $lookback * 2 + 1);
             $point = $closesChrono[$i];
             if ($point === max($window) && array_sum(array_map(fn ($v) => $v === $point ? 1 : 0, $window)) === 1) {
-                $highs[] = $point;
+                $highs[] = ['index' => $i, 'value' => $point];
             }
             if ($point === min($window) && array_sum(array_map(fn ($v) => $v === $point ? 1 : 0, $window)) === 1) {
-                $lows[] = $point;
+                $lows[] = ['index' => $i, 'value' => $point];
             }
         }
 
         return ['highs' => $highs, 'lows' => $lows];
+    }
+
+    public static function swingLevels(array $closesChrono, int $lookback = 3): ?array
+    {
+        $points = self::swingPoints($closesChrono, $lookback);
+        if ($points === null) {
+            return null;
+        }
+
+        return [
+            'highs' => array_map(fn ($p) => $p['value'], $points['highs']),
+            'lows' => array_map(fn ($p) => $p['value'], $points['lows']),
+        ];
+    }
+
+    // Wilder's RSI computed at every point in the series (rather than just the latest, like rsi()
+    // above) — needed to compare RSI's value at two different points in time, e.g. for divergence
+    // detection. Index-aligned with $closes; entries before enough history exists are null.
+    public static function rsiSeries(array $closes, int $period = 14): array
+    {
+        $n = count($closes);
+        $series = array_fill(0, $n, null);
+        if ($n < $period + 1) {
+            return $series;
+        }
+
+        $changes = [];
+        for ($i = 1; $i < $n; $i++) {
+            $changes[] = $closes[$i] - $closes[$i - 1];
+        }
+
+        $avgGain = 0.0;
+        $avgLoss = 0.0;
+        for ($i = 0; $i < $period; $i++) {
+            $c = $changes[$i];
+            $avgGain += $c > 0 ? $c : 0;
+            $avgLoss += $c < 0 ? -$c : 0;
+        }
+        $avgGain /= $period;
+        $avgLoss /= $period;
+        $series[$period] = $avgLoss == 0.0 ? 100.0 : 100 - (100 / (1 + $avgGain / $avgLoss));
+
+        for ($i = $period; $i < count($changes); $i++) {
+            $c = $changes[$i];
+            $gain = $c > 0 ? $c : 0;
+            $loss = $c < 0 ? -$c : 0;
+            $avgGain = ($avgGain * ($period - 1) + $gain) / $period;
+            $avgLoss = ($avgLoss * ($period - 1) + $loss) / $period;
+            $series[$i + 1] = $avgLoss == 0.0 ? 100.0 : 100 - (100 / (1 + $avgGain / $avgLoss));
+        }
+
+        return $series;
     }
 
     // Exponential moving average over the whole series, seeded with the first value.

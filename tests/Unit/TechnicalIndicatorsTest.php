@@ -76,4 +76,33 @@ class TechnicalIndicatorsTest extends TestCase
         $this->assertSame([], $levels['highs']);
         $this->assertSame([], $levels['lows']);
     }
+
+    public function test_swing_points_carries_the_index_of_each_swing(): void
+    {
+        $closes = [...range(100, 109), 130, ...range(109, 100), 70, 71, 73, 75, 77, 79, 81, 83, 85];
+
+        $points = TechnicalIndicators::swingPoints($closes);
+
+        $this->assertSame(10, $points['highs'][0]['index']);
+        $this->assertEqualsWithDelta(130.0, $points['highs'][0]['value'], 0.0001);
+        $this->assertSame(21, $points['lows'][0]['index']);
+        $this->assertEqualsWithDelta(70.0, $points['lows'][0]['value'], 0.0001);
+    }
+
+    public function test_rsi_series_matches_the_single_value_rsi_at_the_last_index(): void
+    {
+        $closes = range(1, 40);
+
+        $series = TechnicalIndicators::rsiSeries($closes, 14);
+        $single = TechnicalIndicators::rsi($closes, 14);
+
+        $this->assertSame($single, $series[count($closes) - 1]);
+    }
+
+    public function test_rsi_series_is_null_before_enough_history(): void
+    {
+        $series = TechnicalIndicators::rsiSeries(range(1, 10), 14);
+
+        $this->assertNull($series[9]);
+    }
 }

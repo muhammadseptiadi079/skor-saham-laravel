@@ -688,4 +688,119 @@ class ScoringEngineTest extends TestCase
 
         $this->assertStringNotContainsString('Rasio return-terhadap-risiko', implode(' ', $result['subScores']['momentum']['notes']));
     }
+
+    public function test_bearish_divergence_detected_and_scored_negative(): void
+    {
+        $lead = [95, 96, 95, 96, 95, 96, 95, 96, 95, 96, 95, 96, 95, 96];
+        $a = [100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150]; // strong rise -> swing high, high RSI
+        $b = [148, 146, 144, 142, 140, 138, 136];
+        $c = [138, 140, 139, 141, 140, 142, 141, 143, 142, 144, 143, 145, 144, 146, 145, 147, 146, 148, 147, 152]; // choppy weak rise -> higher price, lower RSI
+        $tail = [150, 148, 146, 144];
+        $chrono = [...$lead, ...$a, ...$b, ...$c, ...$tail];
+
+        $series = [];
+        foreach (array_reverse($chrono) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1_000_000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertStringContainsString('Divergence bearish', implode(' ', $result['subScores']['momentum']['notes']));
+    }
+
+    public function test_bullish_divergence_detected_and_scored_positive(): void
+    {
+        $lead = [95, 96, 95, 96, 95, 96, 95, 96, 95, 96, 95, 96, 95, 96];
+        $a = [100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50]; // strong decline -> swing low, low RSI
+        $b = [52, 54, 56, 58, 60, 62, 64];
+        $c = [64, 62, 63, 61, 62, 60, 61, 59, 60, 58, 59, 57, 58, 56, 57, 55, 56, 54, 55, 48]; // choppy weak decline -> lower price, higher RSI
+        $tail = [50, 52, 54, 56];
+        $chrono = [...$lead, ...$a, ...$b, ...$c, ...$tail];
+
+        $series = [];
+        foreach (array_reverse($chrono) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1_000_000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertStringContainsString('Divergence bullish', implode(' ', $result['subScores']['momentum']['notes']));
+    }
+
+    public function test_no_divergence_note_for_a_plain_uptrend(): void
+    {
+        $chrono = [];
+        $price = 100;
+        for ($i = 0; $i < 40; $i++) {
+            $price += 1;
+            $chrono[] = $price;
+        }
+        $series = [];
+        foreach (array_reverse($chrono) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1_000_000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertStringNotContainsString('Divergence', implode(' ', $result['subScores']['momentum']['notes']));
+    }
+
+    public function test_confidence_is_high_when_available_sub_scores_all_agree(): void
+    {
+        $fundamentals = ['pegRatio' => 0.8]; // positive
+        $articles = [['title' => 'A', 'sentimentScore' => 1.0]]; // positive
+        $transactions = [['type' => 'buy', 'insiderName' => 'A', 'value' => 1_000_000, 'shares' => 100]]; // positive
+        $series = [];
+        for ($i = 0; $i < 100; $i++) {
+            $series[] = ['close' => 200 - $i, 'volume' => 1000]; // sustained uptrend -> momentumLongTerm positive
+        }
+
+        $result = $this->engine->buildAnalysis($fundamentals, $articles, $series, $transactions, 'IDR');
+
+        $this->assertSame('Tinggi', $result['longterm']['confidence']);
+        $this->assertStringContainsString('sepakat dengan arah kesimpulan', $result['longterm']['confidenceNote']);
+    }
+
+    public function test_confidence_is_moderate_when_one_sub_score_disagrees(): void
+    {
+        $fundamentals = ['pegRatio' => 0.8]; // positive
+        $articles = [['title' => 'A', 'sentimentScore' => 1.0]]; // positive
+        $transactions = [['type' => 'buy', 'insiderName' => 'A', 'value' => 1_000_000, 'shares' => 100]]; // positive
+        $series = [];
+        for ($i = 0; $i < 100; $i++) {
+            $series[] = ['close' => 100 + $i, 'volume' => 1000]; // sustained downtrend -> momentumLongTerm negative
+        }
+
+        $result = $this->engine->buildAnalysis($fundamentals, $articles, $series, $transactions, 'IDR');
+
+        $this->assertSame('Sedang', $result['longterm']['confidence']);
+    }
+
+    public function test_confidence_is_null_when_no_data_available(): void
+    {
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR');
+
+        $this->assertNull($result['longterm']['confidence']);
+        $this->assertNull($result['longterm']['confidenceNote']);
+    }
+
+    public function test_sector_relative_profit_margin_note_added_when_context_provided(): void
+    {
+        $sectorContext = [
+            'sector' => 'Keuangan & Perbankan', 'avgPe' => null, 'peSampleSize' => 0,
+            'avgPeg' => null, 'pegSampleSize' => 0,
+            'avgProfitMargin' => 0.15, 'profitMarginSampleSize' => 3,
+            'avgRoe' => 0.10, 'roeSampleSize' => 3,
+        ];
+
+        $result = $this->engine->buildAnalysis(
+            ['profitMargin' => 0.25, 'returnOnEquity' => 0.05], null, null, null, 'IDR', null, null, $sectorContext
+        );
+
+        $notes = implode(' ', $result['subScores']['fundamentals']['notes']);
+        $this->assertStringContainsString('Margin laba saham ini 25.0%', $notes);
+        $this->assertStringContainsString('lebih tinggi', $notes);
+        $this->assertStringContainsString('ROE saham ini 5.0%', $notes);
+        $this->assertStringContainsString('lebih rendah', $notes);
+    }
 }

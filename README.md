@@ -440,6 +440,45 @@ ada — tanpa biaya API tambahan) plus satu fitur baru yang lebih besar:
     (IDX/IDR vs global/USD) — tidak pernah dijumlah campur supaya tidak
     menyesatkan.
 
+## Round Kedelapan: Kualitas Kesimpulan (Bukan Cuma Tambah Sinyal Baru)
+
+Sub-skor individualnya sudah sangat lengkap dari round-round sebelumnya, jadi
+round ini fokus ke kualitas *kesimpulan* dari sinyal yang sudah ada:
+
+- **Skor keyakinan/konsensus** (`longterm.confidence` / `trading.confidence`,
+  Tinggi/Sedang/Rendah) — melengkapi label Buy/Sell yang sudah ada. Dua
+  saham bisa dapat label "Buy" yang sama, tapi satu karena semua sub-skor
+  kompak positif, satu lagi karena satu sub-skor kuat menutupi yang lain
+  negatif — sekarang beda situasi itu kelihatan. Dihitung dari seberapa
+  banyak sub-skor yang **arahnya jelas** (|skor| ≥ 0.1) sepakat dengan arah
+  kesimpulan akhir; sub-skor yang skornya mendekati nol dianggap "netral",
+  tidak dipaksa masuk salah satu sisi. **Soal keyakinan = kesepakatan,
+  bukan soal benar** — angka ini tidak bilang apa-apa soal apakah
+  kesimpulannya akhirnya benar, cuma soal seberapa banyak sinyal yang
+  searah.
+- **Deteksi divergence RSI vs harga** (`TechnicalIndicators::swingPoints`
+  + `rsiSeries`) — upgrade dari RSI yang sekarang (cuma baca level
+  overbought/oversold). Bearish divergence: harga bikin puncak baru lebih
+  tinggi, tapi RSI di titik itu malah lebih rendah dari puncak sebelumnya
+  (momentum naik melemah diam-diam). Bullish divergence: kebalikannya di
+  titik terendah. Pola klasik analisis teknikal, ikut masuk skor momentum
+  (bukan cuma catatan) karena arahnya cukup jelas.
+- **Laporan evaluasi bobot** (`SubScoreAccuracyService::weightSuggestions`,
+  bagian "Saran Evaluasi Bobot" di panel Akurasi Historis) — begitu
+  sub-skor tertentu punya ≥20 sampel backtest, dan akurasi arahnya
+  konsisten rendah (<45%) atau tinggi (>65%), muncul saran tertulis
+  ("pertimbangkan turunkan/naikkan bobotnya"). **Ini cuma laporan buat
+  dibaca manusia — tidak pernah otomatis mengubah `ScoringEngine::WEIGHTS`.**
+  Sampel sekecil ini (dan akan selalu kecil untuk aplikasi personal) terlalu
+  berisiko untuk auto-tuning — lebih mudah salah mengira noise sebagai
+  sinyal beneran. Keputusan tetap di tangan manusia yang baca laporannya.
+- **Perbandingan sektor watchlist diperluas ke margin & ROE** — sebelumnya
+  cuma P/E & PEG (soal valuasi/mahal-murah). Sekarang ditambah margin
+  laba dan ROE, jadi kelihatan bukan cuma "lebih murah/mahal dari sektor
+  sejenis di watchlist kamu" tapi juga "lebih/kurang profitable". Sama
+  seperti perbandingan P/E — sampel kecil dari watchlist sendiri, bukan
+  data resmi sektor.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -545,7 +584,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 146 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 163 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

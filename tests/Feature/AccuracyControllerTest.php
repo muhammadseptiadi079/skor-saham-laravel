@@ -138,4 +138,29 @@ class AccuracyControllerTest extends TestCase
 
         $response->assertJsonPath('sampleSize', 1);
     }
+
+    public function test_response_includes_weight_suggestions_key(): void
+    {
+        $response = $this->getJson('/api/accuracy');
+
+        $response->assertOk();
+        $response->assertJsonStructure(['weightSuggestions']);
+    }
+
+    public function test_weight_suggestion_appears_once_enough_poor_samples_accumulate(): void
+    {
+        for ($i = 0; $i < 20; $i++) {
+            AnalysisHistory::create([
+                'ticker' => 'T'.uniqid(), 'market' => 'idx',
+                'outcome_correct' => false, 'forward_return' => -0.05,
+                'sub_scores' => ['momentum' => ['score' => 0.5]],
+                'generated_at' => now(),
+            ]);
+        }
+
+        $response = $this->getJson('/api/accuracy');
+
+        $suggestions = collect($response->json('weightSuggestions'))->keyBy('subScore');
+        $this->assertArrayHasKey('momentum', $suggestions);
+    }
 }

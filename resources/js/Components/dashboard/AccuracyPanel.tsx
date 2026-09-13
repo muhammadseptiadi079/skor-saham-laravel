@@ -130,6 +130,27 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
                     </ul>
                 </div>
             )}
+
+            {data.weightSuggestions.length > 0 && (
+                <div className="mt-4 border-t border-white/10 pt-3">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                        Saran Evaluasi Bobot
+                    </h4>
+                    <p className="mb-2 text-xs text-slate-500">
+                        Cuma saran untuk dibaca manusia — <strong>tidak pernah otomatis mengubah</strong>{' '}
+                        <code className="rounded bg-white/10 px-1 py-0.5">ScoringEngine::WEIGHTS</code>.
+                        Sampel sekecil ini terlalu berisiko untuk auto-tuning.
+                    </p>
+                    <ul className="flex flex-col gap-1.5">
+                        {data.weightSuggestions.map((row) => (
+                            <li key={row.subScore} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs">
+                                <span className="font-semibold text-slate-200">{SUB_SCORE_LABELS[row.subScore] ?? row.subScore}</span>
+                                <span className="text-slate-400"> — {row.suggestion}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </Panel>
     );
 }

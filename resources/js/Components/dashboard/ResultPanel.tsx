@@ -14,6 +14,13 @@ function completenessColorClass(available: number, total: number): string {
     return 'border-rose-400/30 bg-rose-400/10 text-rose-300';
 }
 
+function confidenceColorClass(level: string): string {
+    if (level === 'Tinggi') return 'text-emerald-400';
+    if (level === 'Sedang') return 'text-amber-400';
+
+    return 'text-rose-400';
+}
+
 interface ResultPanelProps {
     result: AnalysisResult;
     savedAt: number | null;
@@ -80,9 +87,25 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
             <div className="mt-4 grid grid-cols-2 gap-3">
                 <GlassCard className="p-3">
                     <ScoreGauge score={result.longterm.score} label={result.longterm.label} title="Jangka Panjang" />
+                    {result.longterm.confidence && (
+                        <p
+                            className={`mt-1 text-center text-[11px] font-medium ${confidenceColorClass(result.longterm.confidence)}`}
+                            title={result.longterm.confidenceNote ?? undefined}
+                        >
+                            Keyakinan: {result.longterm.confidence}
+                        </p>
+                    )}
                 </GlassCard>
                 <GlassCard className="p-3">
                     <ScoreGauge score={result.trading.score} label={result.trading.label} title="Trading" />
+                    {result.trading.confidence && (
+                        <p
+                            className={`mt-1 text-center text-[11px] font-medium ${confidenceColorClass(result.trading.confidence)}`}
+                            title={result.trading.confidenceNote ?? undefined}
+                        >
+                            Keyakinan: {result.trading.confidence}
+                        </p>
+                    )}
                 </GlassCard>
             </div>
 

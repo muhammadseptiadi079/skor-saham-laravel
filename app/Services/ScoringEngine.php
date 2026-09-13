@@ -20,6 +20,13 @@ class ScoringEngine
         'trading' => ['fundamentals' => 0.1, 'news' => 0.3, 'momentum' => 0.4, 'ownership' => 0.2],
     ];
 
+    // Exposed read-only so SubScoreAccuracyService can cross-reference accuracy data against the
+    // weight actually in use, without duplicating these numbers elsewhere.
+    public static function weights(): array
+    {
+        return self::WEIGHTS;
+    }
+
     public function buildAnalysis(
         ?array $fundamentals,
         ?array $newsArticles,
@@ -51,6 +58,8 @@ class ScoringEngine
 
         $longtermScore = $this->combine($subScores, 'longterm');
         $tradingScore = $this->combine($subScores, 'trading');
+        $longtermConfidence = $this->confidenceFor($subScores, 'longterm', $longtermScore);
+        $tradingConfidence = $this->confidenceFor($subScores, 'trading', $tradingScore);
 
         $available = count(array_filter($subScores, fn ($s) => $s['score'] !== null));
 
@@ -72,8 +81,18 @@ class ScoringEngine
             ],
             'dataCompleteness' => ['available' => $available, 'total' => count($subScores)],
             'lowLiquidity' => $momentumResult['lowLiquidity'] ?? false,
-            'longterm' => ['score' => $longtermScore, 'label' => $this->labelFor($longtermScore)],
-            'trading' => ['score' => $tradingScore, 'label' => $this->labelFor($tradingScore)],
+            'longterm' => [
+                'score' => $longtermScore,
+                'label' => $this->labelFor($longtermScore),
+                'confidence' => $longtermConfidence['level'],
+                'confidenceNote' => $longtermConfidence['note'],
+            ],
+            'trading' => [
+                'score' => $tradingScore,
+                'label' => $this->labelFor($tradingScore),
+                'confidence' => $tradingConfidence['level'],
+                'confidenceNote' => $tradingConfidence['note'],
+            ],
             'disclaimer' => 'Ini analisis berbasis aturan sederhana (bukan prediksi yang terjamin akurat). '.
                 'Gunakan sebagai salah satu bahan pertimbangan, bukan satu-satunya dasar keputusan investasi/trading.',
         ];
@@ -230,6 +249,29 @@ class ScoringEngine
                 "{$arah} {$this->pct(abs($diff))} (pembanding dari watchlist sendiri, sampel kecil — bukan data resmi sektor).";
         }
 
+        // Same idea as the P/E comparison above, but for profitability rather than valuation — a
+        // stock can be "cheap" (low P/E) yet also less profitable than its sector peers, which the
+        // P/E comparison alone wouldn't reveal.
+        if ($sectorContext && $this->isNum($f['profitMargin'] ?? null) && $this->isNum($sectorContext['avgProfitMargin'] ?? null)) {
+            $ownMargin = $f['profitMargin'];
+            $avgMargin = $sectorContext['avgProfitMargin'];
+            $diff = $ownMargin - $avgMargin;
+            $arah = $diff >= 0 ? 'lebih tinggi' : 'lebih rendah';
+            $notes[] = 'Margin laba saham ini '.$this->pct($ownMargin)." dibanding rata-rata {$sectorContext['profitMarginSampleSize']} saham ".
+                "sektor {$sectorContext['sector']} lain di watchlist kamu (".$this->pct($avgMargin).') — '.
+                "{$arah} {$this->pct(abs($diff))} poin (pembanding dari watchlist sendiri, sampel kecil).";
+        }
+
+        if ($sectorContext && $this->isNum($f['returnOnEquity'] ?? null) && $this->isNum($sectorContext['avgRoe'] ?? null)) {
+            $ownRoe = $f['returnOnEquity'];
+            $avgRoe = $sectorContext['avgRoe'];
+            $diff = $ownRoe - $avgRoe;
+            $arah = $diff >= 0 ? 'lebih tinggi' : 'lebih rendah';
+            $notes[] = 'ROE saham ini '.$this->pct($ownRoe)." dibanding rata-rata {$sectorContext['roeSampleSize']} saham ".
+                "sektor {$sectorContext['sector']} lain di watchlist kamu (".$this->pct($avgRoe).') — '.
+                "{$arah} {$this->pct(abs($diff))} poin (pembanding dari watchlist sendiri, sampel kecil).";
+        }
+
         if ($this->isNum($f['beta'] ?? null)) {
             $beta = $f['beta'];
             $desc = $beta > 1.2 ? 'lebih volatile dari pasar' : ($beta < 0.8 ? 'kurang volatile dari pasar (defensif)' : 'volatilitasnya mirip pasar');
@@ -351,6 +393,12 @@ class ScoringEngine
                 : 'MACD di bawah garis sinyal (momentum bearish)';
         }
 
+        $divergence = $this->detectDivergence($closesChrono);
+        if ($divergence !== null) {
+            $parts[] = $divergence['score'];
+            $notes[] = $divergence['note'];
+        }
+
         // Relative strength vs. a market index: outperforming the benchmark is a stronger bullish
         // signal than raw absolute momentum (a 5% gain means little if the whole market is up 8%).
         if ($benchmarkSeries && count($benchmarkSeries) >= 20) {
@@ -401,6 +449,56 @@ class ScoringEngine
         }
 
         return ['score' => $finalScore, 'notes' => $notes, 'lowLiquidity' => $lowLiquidity];
+    }
+
+    // Classic technical divergence: price and RSI disagreeing about the trend's strength at the
+    // last two swing points is read as an early warning that the current move is losing steam,
+    // ahead of whatever RSI's own overbought/oversold level check above would otherwise say.
+    // Bearish: price's latest swing high is higher than its previous one, but RSI's high is lower
+    // (rally losing momentum). Bullish: the mirror image on swing lows.
+    private function detectDivergence(array $closesChrono): ?array
+    {
+        $points = TechnicalIndicators::swingPoints($closesChrono);
+        if (! $points) {
+            return null;
+        }
+
+        $rsiSeries = TechnicalIndicators::rsiSeries($closesChrono, 14);
+
+        if ($this->hasDivergence($points['highs'], $rsiSeries, true)) {
+            return [
+                'score' => -0.6,
+                'note' => 'Divergence bearish: harga mencetak puncak lebih tinggi dari sebelumnya, tapi RSI di titik itu '.
+                    'malah lebih rendah — momentum naik mulai melemah, waspada potensi pembalikan turun.',
+            ];
+        }
+
+        if ($this->hasDivergence($points['lows'], $rsiSeries, false)) {
+            return [
+                'score' => 0.6,
+                'note' => 'Divergence bullish: harga mencetak titik terendah baru yang lebih rendah, tapi RSI di titik itu '.
+                    'malah lebih tinggi — momentum turun mulai melemah, potensi pembalikan naik.',
+            ];
+        }
+
+        return null;
+    }
+
+    private function hasDivergence(array $swingPoints, array $rsiSeries, bool $isHigh): bool
+    {
+        $withRsi = array_values(array_filter($swingPoints, fn ($p) => $rsiSeries[$p['index']] !== null));
+        if (count($withRsi) < 2) {
+            return false;
+        }
+
+        $last = $withRsi[count($withRsi) - 1];
+        $prev = $withRsi[count($withRsi) - 2];
+        $lastRsi = $rsiSeries[$last['index']];
+        $prevRsi = $rsiSeries[$prev['index']];
+
+        return $isHigh
+            ? ($last['value'] > $prev['value'] && $lastRsi < $prevRsi)
+            : ($last['value'] < $prev['value'] && $lastRsi > $prevRsi);
     }
 
     // Nearest support/resistance from swing highs/lows in the price history the series provides
@@ -803,6 +901,54 @@ class ScoringEngine
         }
 
         return $this->clamp($weightedSum / $weightTotal);
+    }
+
+    // A combined score alone can't tell "all sub-scores quietly agree" apart from "one strong
+    // sub-score is outvoting others that disagree" — both can produce the same weighted average.
+    // Confidence here means agreement, not correctness: it says nothing about whether the call is
+    // actually right, only how much the available signals point the same direction. Sub-scores
+    // scored close to zero (|score| < 0.1) are treated as "no real opinion" and excluded from the
+    // agree/disagree count rather than being forced into either side.
+    private const CONFIDENCE_NEUTRAL_BAND = 0.1;
+
+    /** @return array{level: string|null, note: string|null} */
+    private function confidenceFor(array $subScores, string $horizon, ?float $combinedScore): array
+    {
+        if ($combinedScore === null) {
+            return ['level' => null, 'note' => null];
+        }
+
+        $agree = 0;
+        $disagree = 0;
+        $neutral = 0;
+        foreach (self::WEIGHTS[$horizon] as $key => $w) {
+            $s = $subScores[$key]['score'] ?? null;
+            if ($s === null) {
+                continue;
+            }
+            if (abs($s) < self::CONFIDENCE_NEUTRAL_BAND) {
+                $neutral++;
+
+                continue;
+            }
+            if (($s > 0) === ($combinedScore > 0)) {
+                $agree++;
+            } else {
+                $disagree++;
+            }
+        }
+
+        $total = $agree + $disagree;
+        if ($total === 0) {
+            return ['level' => null, 'note' => null];
+        }
+
+        $ratio = $agree / $total;
+        $level = $ratio >= 0.8 ? 'Tinggi' : ($ratio >= 0.5 ? 'Sedang' : 'Rendah');
+        $note = "{$agree} dari {$total} sub-skor yang punya arah jelas sepakat dengan arah kesimpulan ini".
+            ($neutral > 0 ? " ({$neutral} netral)" : '').'.';
+
+        return ['level' => $level, 'note' => $note];
     }
 
     private function labelFor(?float $score): string

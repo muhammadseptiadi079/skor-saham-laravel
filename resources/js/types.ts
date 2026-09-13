@@ -34,6 +34,8 @@ export interface OwnershipSubScore extends SubScoreResult {
 export interface HorizonResult {
     score: number | null;
     label: string;
+    confidence: string | null;
+    confidenceNote: string | null;
 }
 
 export interface DataCompleteness {
@@ -133,6 +135,13 @@ export interface SubScoreAccuracy {
     directionalAccuracy: number | null;
 }
 
+export interface WeightSuggestion {
+    subScore: string;
+    sampleSize: number;
+    directionalAccuracy: number;
+    suggestion: string;
+}
+
 export interface AccuracyResponse {
     sampleSize: number;
     accuracy: number | null;
@@ -141,6 +150,7 @@ export interface AccuracyResponse {
     byMarketRegime: AccuracyByLabel[];
     byWatchlistSector: AccuracyByLabel[];
     subScoreAccuracy: SubScoreAccuracy[];
+    weightSuggestions: WeightSuggestion[];
 }
 
 export interface ApiError {

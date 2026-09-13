@@ -86,4 +86,28 @@ class SectorValuationServiceTest extends TestCase
 
         $this->assertEqualsWithDelta(20.0, $result['avgPe'], 0.0001);
     }
+
+    public function test_averages_profit_margin_and_roe_across_sector_peers(): void
+    {
+        WatchlistItem::create(['ticker' => 'BBCA', 'market' => 'idx', 'sector' => 'Keuangan & Perbankan']);
+        WatchlistItem::create(['ticker' => 'BMRI', 'market' => 'idx', 'sector' => 'Keuangan & Perbankan']);
+        WatchlistItem::create(['ticker' => 'BBRI', 'market' => 'idx', 'sector' => 'Keuangan & Perbankan']);
+
+        AnalysisHistory::create([
+            'ticker' => 'BMRI', 'market' => 'idx', 'generated_at' => now(),
+            'profit_margin' => 0.20, 'roe' => 0.12,
+        ]);
+        AnalysisHistory::create([
+            'ticker' => 'BBRI', 'market' => 'idx', 'generated_at' => now(),
+            'profit_margin' => 0.30, 'roe' => 0.18,
+        ]);
+
+        $result = $this->service->averagesFor('BBCA', 'idx');
+
+        $this->assertNotNull($result);
+        $this->assertEqualsWithDelta(0.25, $result['avgProfitMargin'], 0.0001);
+        $this->assertSame(2, $result['profitMarginSampleSize']);
+        $this->assertEqualsWithDelta(0.15, $result['avgRoe'], 0.0001);
+        $this->assertSame(2, $result['roeSampleSize']);
+    }
 }

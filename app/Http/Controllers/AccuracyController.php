@@ -21,6 +21,7 @@ class AccuracyController extends Controller
     {
         $market = $request->query('market');
         $subScoreAccuracy = $this->subScoreAccuracy->report($market);
+        $weightSuggestions = $this->subScoreAccuracy->weightSuggestions($market);
 
         $query = AnalysisHistory::query()
             ->whereNotNull('outcome_correct')
@@ -43,6 +44,7 @@ class AccuracyController extends Controller
                 'byMarketRegime' => [],
                 'byWatchlistSector' => [],
                 'subScoreAccuracy' => $subScoreAccuracy,
+                'weightSuggestions' => $weightSuggestions,
             ]);
         }
 
@@ -71,6 +73,7 @@ class AccuracyController extends Controller
             'byMarketRegime' => $byMarketRegime,
             'byWatchlistSector' => $byWatchlistSector,
             'subScoreAccuracy' => $subScoreAccuracy,
+            'weightSuggestions' => $weightSuggestions,
         ]);
     }
 

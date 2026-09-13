@@ -6,9 +6,9 @@ use App\Models\AnalysisHistory;
 use App\Models\WatchlistItem;
 use App\Support\Sectors;
 
-// Compares a stock's P/E and PEG ratio against other stocks in the same user-assigned sector,
-// using the app's own accumulated analysis history — no free data source gives a reliable
-// sector-average ratio for IDX tickers. Necessarily a small, self-selected sample (only
+// Compares a stock's P/E, PEG, profit margin, and ROE against other stocks in the same
+// user-assigned sector, using the app's own accumulated analysis history — no free data source
+// gives a reliable sector-average for IDX tickers. Necessarily a small, self-selected sample (only
 // sectors/tickers the user has already put in their own watchlist), so this is a rough
 // comparison against "the sector as represented in your watchlist," not an authoritative
 // sector benchmark. Purely informational — ScoringEngine never scores it.
@@ -46,11 +46,13 @@ class SectorValuationService
 
         $peValues = [];
         $pegValues = [];
+        $marginValues = [];
+        $roeValues = [];
         foreach ($peerTickers as $peerTicker) {
             $latest = AnalysisHistory::where('ticker', $peerTicker)
                 ->where('market', $market)
                 ->orderByDesc('generated_at')
-                ->first(['pe_ratio', 'peg_ratio']);
+                ->first(['pe_ratio', 'peg_ratio', 'profit_margin', 'roe']);
 
             if ($latest?->pe_ratio) {
                 $peValues[] = $latest->pe_ratio;
@@ -58,9 +60,16 @@ class SectorValuationService
             if ($latest?->peg_ratio) {
                 $pegValues[] = $latest->peg_ratio;
             }
+            if ($latest?->profit_margin !== null) {
+                $marginValues[] = $latest->profit_margin;
+            }
+            if ($latest?->roe !== null) {
+                $roeValues[] = $latest->roe;
+            }
         }
 
-        if (count($peValues) < self::MIN_PEERS && count($pegValues) < self::MIN_PEERS) {
+        if (count($peValues) < self::MIN_PEERS && count($pegValues) < self::MIN_PEERS
+            && count($marginValues) < self::MIN_PEERS && count($roeValues) < self::MIN_PEERS) {
             return null;
         }
 
@@ -70,6 +79,10 @@ class SectorValuationService
             'peSampleSize' => count($peValues),
             'avgPeg' => count($pegValues) >= self::MIN_PEERS ? array_sum($pegValues) / count($pegValues) : null,
             'pegSampleSize' => count($pegValues),
+            'avgProfitMargin' => count($marginValues) >= self::MIN_PEERS ? array_sum($marginValues) / count($marginValues) : null,
+            'profitMarginSampleSize' => count($marginValues),
+            'avgRoe' => count($roeValues) >= self::MIN_PEERS ? array_sum($roeValues) / count($roeValues) : null,
+            'roeSampleSize' => count($roeValues),
         ];
     }
 }

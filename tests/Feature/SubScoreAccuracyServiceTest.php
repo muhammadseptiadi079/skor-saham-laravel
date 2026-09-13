@@ -46,4 +46,64 @@ class SubScoreAccuracyServiceTest extends TestCase
         $this->assertSame(0, $report['momentum']['sampleSize']);
         $this->assertNull($report['momentum']['directionalAccuracy']);
     }
+
+    private function createGradedRow(string $subScore, float $score, bool $matches): void
+    {
+        AnalysisHistory::create([
+            'ticker' => 'T'.uniqid(), 'market' => 'idx',
+            'outcome_correct' => $matches, 'forward_return' => $matches ? 0.05 : -0.05,
+            'sub_scores' => [$subScore => ['score' => $score]],
+            'generated_at' => now(),
+        ]);
+    }
+
+    public function test_no_weight_suggestion_below_minimum_sample_size(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $this->createGradedRow('momentum', 0.5, false); // consistently wrong, but too few samples
+        }
+
+        $suggestions = collect(app(SubScoreAccuracyService::class)->weightSuggestions())->keyBy('subScore');
+
+        $this->assertArrayNotHasKey('momentum', $suggestions);
+    }
+
+    public function test_suggests_lowering_weight_for_poor_directional_accuracy(): void
+    {
+        for ($i = 0; $i < 20; $i++) {
+            // Score positive but price consistently moved the other way -> 0% accuracy.
+            $this->createGradedRow('momentum', 0.5, false);
+        }
+
+        $suggestions = collect(app(SubScoreAccuracyService::class)->weightSuggestions())->keyBy('subScore');
+
+        $this->assertArrayHasKey('momentum', $suggestions);
+        $this->assertStringContainsString('turunkan bobotnya', $suggestions['momentum']['suggestion']);
+    }
+
+    public function test_suggests_raising_weight_for_strong_directional_accuracy(): void
+    {
+        for ($i = 0; $i < 20; $i++) {
+            $this->createGradedRow('fundamentals', 0.5, true); // always matched the actual direction
+        }
+
+        $suggestions = collect(app(SubScoreAccuracyService::class)->weightSuggestions())->keyBy('subScore');
+
+        $this->assertArrayHasKey('fundamentals', $suggestions);
+        $this->assertStringContainsString('dinaikkan bobotnya', $suggestions['fundamentals']['suggestion']);
+    }
+
+    public function test_no_suggestion_for_moderate_accuracy(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $this->createGradedRow('ownership', 0.5, true);
+        }
+        for ($i = 0; $i < 10; $i++) {
+            $this->createGradedRow('ownership', 0.5, false);
+        }
+
+        $suggestions = collect(app(SubScoreAccuracyService::class)->weightSuggestions())->keyBy('subScore');
+
+        $this->assertArrayNotHasKey('ownership', $suggestions);
+    }
 }

@@ -55,6 +55,8 @@ class RefreshStockScores extends Command
                     'pe_ratio' => $analysis['peRatioAtGeneration'] ?? null,
                     'peg_ratio' => $analysis['pegRatioAtGeneration'] ?? null,
                     'news_article_count' => $analysis['newsArticleCountAtGeneration'] ?? null,
+                    'profit_margin' => $analysis['profitMarginAtGeneration'] ?? null,
+                    'roe' => $analysis['roeAtGeneration'] ?? null,
                     'evaluation_horizon_days' => 20,
                 ]);
                 $this->info("Scored {$t['ticker']} ({$t['market']}): trading={$analysis['trading']['label']}");
