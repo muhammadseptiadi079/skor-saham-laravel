@@ -68,6 +68,8 @@ export interface WatchlistItem {
     name: string | null;
     sector: string;
     is_favorite: boolean;
+    shares_owned: number | null;
+    avg_buy_price: number | null;
     created_at: string;
     updated_at: string;
 }
@@ -151,6 +153,38 @@ export interface CachedAnalysis {
     id: string; // `${market}:${ticker}`
     savedAt: number;
     analysis: AnalysisResult;
+}
+
+export interface PortfolioHolding {
+    id: number;
+    ticker: string;
+    market: Market;
+    name: string | null;
+    sector: string;
+    sharesOwned: number;
+    avgBuyPrice: number;
+    currentPrice: number | null;
+    priceAsOf: string | null;
+    costBasis: number;
+    currentValue: number | null;
+    unrealizedPnl: number | null;
+    unrealizedPnlPct: number | null;
+}
+
+export interface PortfolioSummary {
+    market: Market;
+    currency: string;
+    holdingsCount: number;
+    pricedHoldingsCount: number;
+    totalCostBasis: number;
+    totalCurrentValue: number | null;
+    totalUnrealizedPnl: number | null;
+    totalUnrealizedPnlPct: number | null;
+}
+
+export interface PortfolioResponse {
+    holdings: PortfolioHolding[];
+    summaries: PortfolioSummary[];
 }
 
 export interface ManualNewsItem {

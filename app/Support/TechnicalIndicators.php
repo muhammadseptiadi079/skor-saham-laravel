@@ -82,6 +82,33 @@ class TechnicalIndicators
         ];
     }
 
+    // Classic swing high/low detection: a point is a swing high if it's strictly higher than every
+    // other point within $lookback days on both sides (swing low: strictly lower). A simple,
+    // widely-used chartist heuristic for "where did price turn around before" — not a prediction
+    // that it will turn around there again. Returns null if there isn't enough history yet.
+    public static function swingLevels(array $closesChrono, int $lookback = 3): ?array
+    {
+        $n = count($closesChrono);
+        if ($n < $lookback * 2 + 1) {
+            return null;
+        }
+
+        $highs = [];
+        $lows = [];
+        for ($i = $lookback; $i < $n - $lookback; $i++) {
+            $window = array_slice($closesChrono, $i - $lookback, $lookback * 2 + 1);
+            $point = $closesChrono[$i];
+            if ($point === max($window) && array_sum(array_map(fn ($v) => $v === $point ? 1 : 0, $window)) === 1) {
+                $highs[] = $point;
+            }
+            if ($point === min($window) && array_sum(array_map(fn ($v) => $v === $point ? 1 : 0, $window)) === 1) {
+                $lows[] = $point;
+            }
+        }
+
+        return ['highs' => $highs, 'lows' => $lows];
+    }
+
     // Exponential moving average over the whole series, seeded with the first value.
     private static function emaSeries(array $values, int $period): array
     {

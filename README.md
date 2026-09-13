@@ -391,6 +391,55 @@ diekstrak lewat OCR. Ditangani oleh `App\Http\Controllers\ManualNewsController`
   otomatis skip di mesin yang tidak punya `tesseract-ocr` ter-install,
   supaya suite test tetap portable.
 
+## Round Ketujuh: Kepemilikan, Dividen, Level Teknikal, Risk-Adjusted Momentum, dan Portfolio Tracker
+
+Empat catatan analisis baru (masih rule-based, numpang di request yang sudah
+ada — tanpa biaya API tambahan) plus satu fitur baru yang lebih besar:
+
+- **Kepemilikan insider & institusi** — persentase saham beredar yang
+  dipegang insider vs institusi (modul Yahoo `majorHoldersBreakdown`).
+  **Cuma tersedia untuk saham IDX** — Alpha Vantage `OVERVIEW` tidak
+  menyediakan data ini untuk saham global, jadi field-nya sengaja `null`
+  di sana daripada dipaksakan pakai sumber lain.
+- **Tanggal Ex Dividen** — melengkapi fitur dividend yield yang sudah ada;
+  kalau tanggal Ex Dividen dalam ≤7 hari, muncul catatan pengingat "beli
+  sebelum tanggal ini kalau mau dapat dividen periode ini". Tersedia untuk
+  IDX (Yahoo `summaryDetail.exDividendDate`) maupun global (Alpha Vantage
+  `ExDividendDate`).
+- **Level support/resistance** (`TechnicalIndicators::swingLevels`) —
+  titik balik harga (swing high/low) dari data harga historis yang sudah
+  di-fetch, dicari titik terdekat di atas (resistance) dan di bawah
+  (support) harga sekarang. Heuristik chartist klasik, bukan jaminan harga
+  akan memantul di level tersebut.
+- **Rasio return-terhadap-risiko** — melengkapi volatilitas historis yang
+  sudah ada: momentum 20 hari dan volatilitas historis sama-sama
+  disetahunkan lalu dibagi, mirip semangat Sharpe ratio (tanpa risk-free
+  rate). Cuma catatan konteks, bukan ikut masuk skor — menskor ulang rasio
+  dari dua sinyal yang sudah ikut skor sebelumnya cuma menghitung dua kali.
+- **Portfolio tracker** (`/api/portfolio`, panel "Portfolio" di dashboard)
+  — beda dari fitur-fitur di atas, ini bukan catatan analisis, tapi
+  pelacak untung/rugi sungguhan. Saham yang ditandai favorit (`is_favorite`)
+  bisa diisi jumlah lembar (`shares_owned`) dan harga beli rata-rata
+  (`avg_buy_price`) lewat `PATCH /api/watchlist/{id}` — begitu keduanya
+  terisi, otomatis dihitung untung/rugi belum terealisasi terhadap harga
+  cache terakhir.
+  - **Kenapa cuma satu avg buy price, bukan ledger transaksi lengkap** —
+    tracker beneran akurat untuk multi-transaksi (FIFO/rata-rata
+    tertimbang per pembelian) butuh tabel ledger buy/sell terpisah, jauh
+    lebih besar scope-nya. Yang dibangun di sini pakai satu angka rata-rata
+    yang diisi sendiri oleh user — cukup untuk "kira-kira saya untung
+    berapa", tidak untuk pembukuan pajak/akuntansi presisi.
+  - **Harga "sekarang" itu dari cache, bukan real-time** — diambil dari
+    baris `analysis_history` terbaru untuk ticker itu (hasil
+    `stocks:refresh-scores` harian, atau kapan pun terakhir kamu
+    menganalisis ticker itu lewat pencarian). Tiap holding menampilkan
+    tanggal harga itu diambil — kalau sudah lama, jalankan
+    `php artisan stocks:refresh-scores` atau analisis ulang ticker-nya
+    supaya lebih update.
+  - Ringkasan total (modal, nilai, untung/rugi) **dipisah per mata uang**
+    (IDX/IDR vs global/USD) — tidak pernah dijumlah campur supaya tidak
+    menyesatkan.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -496,7 +545,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 127 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 146 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

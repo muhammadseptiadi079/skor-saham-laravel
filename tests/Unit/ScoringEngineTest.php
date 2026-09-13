@@ -605,4 +605,87 @@ class ScoringEngineTest extends TestCase
 
         $this->assertStringContainsString('Jumlah berita lagi tinggi', implode(' ', $result['subScores']['news']['notes']));
     }
+
+    public function test_ex_dividend_date_within_7_days_adds_a_note(): void
+    {
+        $soon = date('Y-m-d', strtotime('+3 days'));
+
+        $result = $this->engine->buildAnalysis(['exDividendDate' => $soon], null, null, null, 'IDR');
+
+        $this->assertStringContainsString('Ex Dividen', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_ex_dividend_date_far_away_does_not_add_a_note(): void
+    {
+        $farAway = date('Y-m-d', strtotime('+30 days'));
+
+        $result = $this->engine->buildAnalysis(['exDividendDate' => $farAway, 'pegRatio' => 0.8], null, null, null, 'IDR');
+
+        $this->assertStringNotContainsString('Ex Dividen', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_ownership_percentage_shown_as_context_note(): void
+    {
+        $result = $this->engine->buildAnalysis(
+            ['insidersPercentHeld' => 0.15, 'institutionsPercentHeld' => 0.42], null, null, null, 'USD'
+        );
+
+        $notes = implode(' ', $result['subScores']['fundamentals']['notes']);
+        $this->assertStringContainsString('insider 15.0%', $notes);
+        $this->assertStringContainsString('institusi 42.0%', $notes);
+    }
+
+    public function test_support_resistance_note_shown_from_swing_points(): void
+    {
+        $chrono = [];
+        foreach (range(100, 109) as $v) {
+            $chrono[] = $v;
+        }
+        $chrono[] = 130; // swing high
+        foreach (range(109, 100) as $v) {
+            $chrono[] = $v;
+        }
+        $chrono[] = 70; // swing low
+        foreach ([71, 73, 75, 77, 79, 81, 83, 85] as $v) {
+            $chrono[] = $v;
+        }
+
+        $series = [];
+        foreach (array_reverse($chrono) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1_000_000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $notes = implode(' ', $result['subScores']['momentum']['notes']);
+        $this->assertStringContainsString('resistance terdekat ~Rp130', $notes);
+        $this->assertStringContainsString('support terdekat ~Rp70', $notes);
+    }
+
+    public function test_risk_adjusted_momentum_note_shown_when_volatility_available(): void
+    {
+        $chrono = [];
+        $price = 100;
+        for ($i = 0; $i < 20; $i++) {
+            $price += $i % 3 === 0 ? -0.3 : 1;
+            $chrono[] = $price;
+        }
+        $series = [];
+        foreach (array_reverse($chrono) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1_000_000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertStringContainsString('Rasio return-terhadap-risiko', implode(' ', $result['subScores']['momentum']['notes']));
+    }
+
+    public function test_risk_adjusted_momentum_note_skipped_for_flat_price_with_zero_volatility(): void
+    {
+        $series = array_fill(0, 20, ['close' => 100, 'volume' => 1_000_000]);
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertStringNotContainsString('Rasio return-terhadap-risiko', implode(' ', $result['subScores']['momentum']['notes']));
+    }
 }

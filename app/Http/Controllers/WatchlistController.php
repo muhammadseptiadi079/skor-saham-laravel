@@ -39,14 +39,16 @@ class WatchlistController extends Controller
         return response()->json($item, 201);
     }
 
-    // Lets the user reclassify a stock's sector, or mark/unmark it as a favorite (meaning "I
-    // actually bought this one" — a lightweight way to tell it apart from stocks just being
-    // watched, without a full portfolio/holdings feature).
+    // Lets the user reclassify a stock's sector, mark/unmark it as a favorite (meaning "I actually
+    // bought this one"), or record how much they hold — shares_owned + avg_buy_price is what turns
+    // a favorited item into a portfolio holding for PortfolioController.
     public function update(Request $request, WatchlistItem $watchlistItem)
     {
         $validated = $request->validate([
             'sector' => ['sometimes', 'string', Rule::in(Sectors::ALL)],
             'is_favorite' => ['sometimes', 'boolean'],
+            'shares_owned' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'avg_buy_price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
         ]);
 
         $watchlistItem->update($validated);

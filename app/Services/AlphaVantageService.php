@@ -44,6 +44,9 @@ class AlphaVantageService
             'beta' => $this->toNum($data['Beta'] ?? null),
             'fiftyTwoWeekLow' => $this->toNum($data['52WeekLow'] ?? null),
             'fiftyTwoWeekHigh' => $this->toNum($data['52WeekHigh'] ?? null),
+            'exDividendDate' => ($data['ExDividendDate'] ?? null) && $data['ExDividendDate'] !== 'None' ? $data['ExDividendDate'] : null,
+            'insidersPercentHeld' => null, // not provided by OVERVIEW
+            'institutionsPercentHeld' => null, // not provided by OVERVIEW
             'sector' => $data['Sector'] ?? null,
         ];
     }

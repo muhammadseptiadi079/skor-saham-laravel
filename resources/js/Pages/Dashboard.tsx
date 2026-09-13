@@ -6,6 +6,7 @@ import type {
     HistoryEntry,
     IpoListing,
     Market,
+    PortfolioResponse,
     ScreenerResponse,
     WatchlistItem,
 } from '@/types';
@@ -14,6 +15,7 @@ import StatCard from '@/Components/dashboard/StatCard';
 import SearchForm from '@/Components/dashboard/SearchForm';
 import ResultPanel from '@/Components/dashboard/ResultPanel';
 import ManualNewsPanel from '@/Components/dashboard/ManualNewsPanel';
+import PortfolioPanel from '@/Components/dashboard/PortfolioPanel';
 import WatchlistPanel from '@/Components/dashboard/WatchlistPanel';
 import ScreenerPanel from '@/Components/dashboard/ScreenerPanel';
 import IpoPanel from '@/Components/dashboard/IpoPanel';
@@ -39,6 +41,7 @@ export default function Dashboard() {
     const [ipoListings, setIpoListings] = useState<IpoListing[]>([]);
     const [localHistory, setLocalHistory] = useState<CachedAnalysis[]>([]);
     const [accuracy, setAccuracy] = useState<AccuracyResponse | null>(null);
+    const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
 
     useEffect(() => {
         const goOnline = () => setOnline(true);
@@ -55,6 +58,10 @@ export default function Dashboard() {
         api.fetchWatchlist().then(setWatchlist).catch(() => setWatchlist([]));
     }, []);
 
+    const refreshPortfolio = useCallback(() => {
+        api.fetchPortfolio().then(setPortfolio).catch(() => setPortfolio(null));
+    }, []);
+
     const refreshLocalHistory = useCallback(() => {
         StockDB.getAll().then(setLocalHistory).catch(() => setLocalHistory([]));
     }, []);
@@ -62,9 +69,10 @@ export default function Dashboard() {
     useEffect(() => {
         refreshWatchlist();
         refreshLocalHistory();
+        refreshPortfolio();
         api.fetchIpoListings().then(setIpoListings).catch(() => setIpoListings([]));
         api.fetchAccuracy().then(setAccuracy).catch(() => setAccuracy(null));
-    }, [refreshWatchlist, refreshLocalHistory]);
+    }, [refreshWatchlist, refreshLocalHistory, refreshPortfolio]);
 
     useEffect(() => {
         api.fetchScreener(screenerMarket).then(setScreener).catch(() => setScreener(null));
@@ -127,6 +135,12 @@ export default function Dashboard() {
     async function handleChangeSector(id: number, sector: string) {
         await api.updateWatchlistItem(id, { sector });
         refreshWatchlist();
+    }
+
+    async function handleUpdateHolding(id: number, patch: { shares_owned?: number | null; avg_buy_price?: number | null }) {
+        await api.updateWatchlistItem(id, patch);
+        refreshWatchlist();
+        refreshPortfolio();
     }
 
     async function handleAddStarterPack(sector: string) {
@@ -216,6 +230,12 @@ export default function Dashboard() {
                 )}
 
                 <ManualNewsPanel defaultTicker={result?.ticker} defaultMarket={result?.market} />
+
+                <PortfolioPanel
+                    favorites={watchlist.filter((w) => w.is_favorite)}
+                    portfolio={portfolio}
+                    onUpdateHolding={handleUpdateHolding}
+                />
 
                 <AccuracyPanel data={accuracy} />
 

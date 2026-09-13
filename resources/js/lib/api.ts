@@ -9,6 +9,7 @@ import type {
     IpoListing,
     ManualNewsItem,
     Market,
+    PortfolioResponse,
     ScreenerResponse,
     WatchlistItem,
 } from '@/types';
@@ -55,7 +56,7 @@ export function addToWatchlist(
 
 export function updateWatchlistItem(
     id: number,
-    patch: Partial<Pick<WatchlistItem, 'sector' | 'is_favorite'>>
+    patch: Partial<Pick<WatchlistItem, 'sector' | 'is_favorite' | 'shares_owned' | 'avg_buy_price'>>
 ): Promise<WatchlistItem> {
     return fetch(`/api/watchlist/${id}`, {
         method: 'PATCH',
@@ -127,4 +128,9 @@ export function submitManualNewsImage(ticker: string, market: Market, image: Fil
 
 export function removeManualNews(id: number): Promise<void> {
     return fetch(`/api/news/manual/${id}`, { method: 'DELETE' }).then(() => undefined);
+}
+
+export function fetchPortfolio(market?: Market): Promise<PortfolioResponse> {
+    const suffix = market ? `?market=${market}` : '';
+    return fetch(`/api/portfolio${suffix}`).then((res) => asJson<PortfolioResponse>(res));
 }

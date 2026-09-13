@@ -200,6 +200,26 @@ class ScoringEngine
             $notes[] = $note;
         }
 
+        if (! empty($f['exDividendDate'])) {
+            $daysUntil = (strtotime($f['exDividendDate']) - strtotime('today')) / 86400;
+            if ($daysUntil >= 0 && $daysUntil <= 7) {
+                $days = (int) round($daysUntil);
+                $notes[] = "Tanggal Ex Dividen sekitar {$f['exDividendDate']} (~{$days} hari lagi) — untuk dapat dividen periode ini, ".
+                    'saham harus sudah dimiliki sebelum tanggal tersebut (selagi masih Cum Dividen).';
+            }
+        }
+
+        if ($this->isNum($f['insidersPercentHeld'] ?? null) || $this->isNum($f['institutionsPercentHeld'] ?? null)) {
+            $parts = [];
+            if ($this->isNum($f['insidersPercentHeld'] ?? null)) {
+                $parts[] = "insider {$this->pct($f['insidersPercentHeld'])}";
+            }
+            if ($this->isNum($f['institutionsPercentHeld'] ?? null)) {
+                $parts[] = "institusi {$this->pct($f['institutionsPercentHeld'])}";
+            }
+            $notes[] = 'Kepemilikan '.implode(', ', $parts).' dari total saham beredar.';
+        }
+
         if ($sectorContext && $this->isNum($f['peRatio'] ?? null) && $this->isNum($sectorContext['avgPe'] ?? null)) {
             $ownPe = $f['peRatio'];
             $avgPe = $sectorContext['avgPe'];
@@ -361,9 +381,13 @@ class ScoringEngine
                 ') — sinyal teknikal (RSI/MACD/momentum) kurang bisa diandalkan pada saham dengan volume tipis.';
         }
 
-        $volatilityNote = $this->historicalVolatilityNote($closesChrono);
-        if ($volatilityNote) {
-            $notes[] = $volatilityNote;
+        $annualizedVol = $this->annualizedVolatility($closesChrono);
+        if ($annualizedVol !== null) {
+            $notes[] = $this->historicalVolatilityNote($annualizedVol);
+            $riskAdjustedNote = $this->riskAdjustedMomentumNote($momentum, $annualizedVol);
+            if ($riskAdjustedNote) {
+                $notes[] = $riskAdjustedNote;
+            }
         }
 
         $araArbNote = $this->araArbWarning($recent[0]['close'] ?? null, $recent[1]['close'] ?? null, $currency);
@@ -371,14 +395,51 @@ class ScoringEngine
             $notes[] = $araArbNote;
         }
 
+        $levelsNote = $this->supportResistanceNote($closesChrono, $closeNow, $currency);
+        if ($levelsNote) {
+            $notes[] = $levelsNote;
+        }
+
         return ['score' => $finalScore, 'notes' => $notes, 'lowLiquidity' => $lowLiquidity];
+    }
+
+    // Nearest support/resistance from swing highs/lows in the price history the series provides
+    // (up to ~6 months) — a classic chartist heuristic, not a guarantee price will react at these
+    // levels. Purely informational context, like the other technical notes above it.
+    private function supportResistanceNote(array $closesChrono, float $currentPrice, string $currency): ?string
+    {
+        $levels = TechnicalIndicators::swingLevels($closesChrono);
+        if (! $levels) {
+            return null;
+        }
+
+        $resistances = array_filter($levels['highs'], fn ($p) => $p > $currentPrice);
+        $supports = array_filter($levels['lows'], fn ($p) => $p < $currentPrice);
+
+        $resistance = count($resistances) > 0 ? min($resistances) : null;
+        $support = count($supports) > 0 ? max($supports) : null;
+
+        if ($resistance === null && $support === null) {
+            return null;
+        }
+
+        $parts = [];
+        if ($resistance !== null) {
+            $parts[] = 'resistance terdekat ~'.$this->pricePerShare($resistance, $currency);
+        }
+        if ($support !== null) {
+            $parts[] = 'support terdekat ~'.$this->pricePerShare($support, $currency);
+        }
+
+        return 'Level teknikal dari titik balik harga historis: '.implode(', ', $parts).
+            ' (bukan jaminan harga akan memantul di level ini).';
     }
 
     // Different risk dimension from the liquidity flag above — that's about thin trading volume,
     // this is about how wildly the price itself swings day to day, independent of volume. A rough
     // rule-of-thumb classification (annualized stdev of daily returns), not a claim about future
     // risk.
-    private function historicalVolatilityNote(array $closesChrono): ?string
+    private function annualizedVolatility(array $closesChrono): ?float
     {
         if (count($closesChrono) < 10) {
             return null;
@@ -396,11 +457,40 @@ class ScoringEngine
 
         $mean = array_sum($returns) / count($returns);
         $variance = array_sum(array_map(fn ($r) => ($r - $mean) ** 2, $returns)) / count($returns);
-        $annualizedVol = sqrt($variance) * sqrt(252);
 
+        return sqrt($variance) * sqrt(252);
+    }
+
+    private function historicalVolatilityNote(float $annualizedVol): string
+    {
         $desc = $annualizedVol >= 0.5 ? 'tinggi' : ($annualizedVol >= 0.25 ? 'sedang' : 'rendah');
 
         return 'Volatilitas historis ~'.$this->pct($annualizedVol)." per tahun ({$desc}) — perkiraan seberapa liar harga bergerak, dihitung dari data harga sendiri.";
+    }
+
+    // A 20-day return alone doesn't say whether it came "cheap" (low volatility) or "expensive"
+    // (only achieved amid wild swings) — combines the momentum and volatility already computed
+    // above into a rough reward-per-unit-risk reading (both annualized so they're comparable
+    // units), similar in spirit to a Sharpe ratio but without a risk-free rate. Purely a context
+    // note: re-scoring a ratio of two signals already folded into the score would just double-count them.
+    private function riskAdjustedMomentumNote(float $momentum20d, ?float $annualizedVol): ?string
+    {
+        if (! $annualizedVol || $annualizedVol <= 0) {
+            return null;
+        }
+
+        $annualizedMomentum = $momentum20d * (252 / 20);
+        $ratio = $annualizedMomentum / $annualizedVol;
+
+        $desc = match (true) {
+            $ratio >= 1 => 'return jauh mengungguli risikonya secara historis',
+            $ratio >= 0.3 => 'return cukup sepadan dengan risikonya',
+            $ratio >= -0.3 => 'return relatif kecil dibanding risikonya',
+            default => 'turun dengan risiko yang juga besar',
+        };
+
+        return 'Rasio return-terhadap-risiko (momentum 20 hari vs volatilitas historis, sama-sama disetahunkan) ~'.
+            number_format($ratio, 2)." — {$desc}.";
     }
 
     // IDX auto-rejection (ARA/ARB) price-move bands. IDX has revised these percentages more than

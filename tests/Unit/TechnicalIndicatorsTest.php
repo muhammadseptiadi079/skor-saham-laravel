@@ -53,4 +53,27 @@ class TechnicalIndicatorsTest extends TestCase
         $this->assertGreaterThan(0, $result['macd']);
         $this->assertEqualsWithDelta($result['macd'] - $result['signal'], $result['histogram'], 0.0001);
     }
+
+    public function test_swing_levels_returns_null_when_not_enough_data(): void
+    {
+        $this->assertNull(TechnicalIndicators::swingLevels(range(1, 5), 3));
+    }
+
+    public function test_swing_levels_detects_a_clear_high_and_low(): void
+    {
+        $closes = [...range(100, 109), 130, ...range(109, 100), 70, 71, 73, 75, 77, 79, 81, 83, 85];
+
+        $levels = TechnicalIndicators::swingLevels($closes);
+
+        $this->assertContains(130.0, array_map('floatval', $levels['highs']));
+        $this->assertContains(70.0, array_map('floatval', $levels['lows']));
+    }
+
+    public function test_swing_levels_ignores_monotonic_series(): void
+    {
+        $levels = TechnicalIndicators::swingLevels(range(1, 30));
+
+        $this->assertSame([], $levels['highs']);
+        $this->assertSame([], $levels['lows']);
+    }
 }

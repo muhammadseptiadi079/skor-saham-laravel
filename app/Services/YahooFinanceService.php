@@ -73,10 +73,10 @@ class YahooFinanceService
         try {
             $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
                 ->get("https://query1.finance.yahoo.com/v10/finance/quoteSummary/{$symbol}", [
-                    // calendarEvents and recommendationTrend ride along on this same request (no
-                    // extra HTTP call) — see ScoringEngine's earnings-proximity note and analyst
-                    // recommendation scoring.
-                    'modules' => 'financialData,defaultKeyStatistics,summaryDetail,summaryProfile,calendarEvents,recommendationTrend',
+                    // calendarEvents, recommendationTrend, and majorHoldersBreakdown all ride
+                    // along on this same request (no extra HTTP call) — see ScoringEngine's
+                    // earnings-proximity note, analyst recommendation scoring, and ownership notes.
+                    'modules' => 'financialData,defaultKeyStatistics,summaryDetail,summaryProfile,calendarEvents,recommendationTrend,majorHoldersBreakdown',
                 ])->json();
 
             $result = $data['quoteSummary']['result'][0] ?? null;
@@ -88,7 +88,9 @@ class YahooFinanceService
             $stats = $result['defaultKeyStatistics'] ?? [];
             $summary = $result['summaryDetail'] ?? [];
             $profile = $result['summaryProfile'] ?? [];
+            $holders = $result['majorHoldersBreakdown'] ?? [];
             $earningsDateRaw = $result['calendarEvents']['earnings']['earningsDate'][0]['raw'] ?? null;
+            $exDividendDateRaw = $summary['exDividendDate']['raw'] ?? null;
             // trend[0] is the '0m' (current month) bucket — Yahoo orders it newest-first.
             $trendNow = $result['recommendationTrend']['trend'][0] ?? null;
 
@@ -103,11 +105,14 @@ class YahooFinanceService
                 'marketCap' => $this->raw($stats['marketCap'] ?? ($summary['marketCap'] ?? null)),
                 'analystTargetPrice' => $this->raw($fin['targetMeanPrice'] ?? null),
                 'nextEarningsDate' => $earningsDateRaw ? gmdate('Y-m-d', $earningsDateRaw) : null,
+                'exDividendDate' => $exDividendDateRaw ? gmdate('Y-m-d', $exDividendDateRaw) : null,
                 'dividendYield' => $this->raw($summary['dividendYield'] ?? null),
                 'payoutRatio' => $this->raw($summary['payoutRatio'] ?? null),
                 'beta' => $this->raw($summary['beta'] ?? ($stats['beta'] ?? null)),
                 'fiftyTwoWeekLow' => $this->raw($summary['fiftyTwoWeekLow'] ?? null),
                 'fiftyTwoWeekHigh' => $this->raw($summary['fiftyTwoWeekHigh'] ?? null),
+                'insidersPercentHeld' => $this->raw($holders['insidersPercentHeld'] ?? null),
+                'institutionsPercentHeld' => $this->raw($holders['institutionsPercentHeld'] ?? null),
                 'analystRatings' => $trendNow ? [
                     'strongBuy' => (int) ($trendNow['strongBuy'] ?? 0),
                     'buy' => (int) ($trendNow['buy'] ?? 0),

@@ -109,4 +109,35 @@ class WatchlistControllerTest extends TestCase
         $this->postJson('/api/watchlist/starter-pack', ['sector' => 'Lainnya'])->assertStatus(422);
         $this->postJson('/api/watchlist/starter-pack', ['sector' => 'Bukan Sektor'])->assertStatus(422);
     }
+
+    public function test_can_set_holding_fields_via_update(): void
+    {
+        $item = WatchlistItem::create(['ticker' => 'BBCA', 'market' => 'idx', 'is_favorite' => true]);
+
+        $update = $this->patchJson("/api/watchlist/{$item->id}", ['shares_owned' => 100, 'avg_buy_price' => 9500]);
+
+        $update->assertOk();
+        $update->assertJsonPath('shares_owned', 100);
+        $update->assertJsonPath('avg_buy_price', 9500);
+    }
+
+    public function test_rejects_negative_holding_fields(): void
+    {
+        $item = WatchlistItem::create(['ticker' => 'BBCA', 'market' => 'idx', 'is_favorite' => true]);
+
+        $this->patchJson("/api/watchlist/{$item->id}", ['shares_owned' => -10])->assertStatus(422);
+    }
+
+    public function test_can_clear_holding_fields_by_setting_them_null(): void
+    {
+        $item = WatchlistItem::create([
+            'ticker' => 'BBCA', 'market' => 'idx', 'is_favorite' => true,
+            'shares_owned' => 100, 'avg_buy_price' => 9500,
+        ]);
+
+        $update = $this->patchJson("/api/watchlist/{$item->id}", ['shares_owned' => null]);
+
+        $update->assertOk();
+        $this->assertNull($item->fresh()->shares_owned);
+    }
 }
