@@ -26,6 +26,7 @@ class AccuracyController extends Controller
         $market = $request->query('market');
         $subScoreAccuracy = $this->subScoreAccuracy->report($market);
         $weightSuggestions = $this->subScoreAccuracy->weightSuggestions($market);
+        $confidenceCalibration = $this->subScoreAccuracy->confidenceCalibrationSuggestion($market);
 
         $query = AnalysisHistory::query()
             ->whereNotNull('outcome_correct')
@@ -50,6 +51,7 @@ class AccuracyController extends Controller
                 'byConfidence' => [],
                 'subScoreAccuracy' => $subScoreAccuracy,
                 'weightSuggestions' => $weightSuggestions,
+                'confidenceCalibration' => $confidenceCalibration,
             ]);
         }
 
@@ -68,9 +70,8 @@ class AccuracyController extends Controller
             ->map(fn ($rows, $sector) => $this->summarize($rows, $sector))
             ->values();
 
-        // Validates the confidence score itself: if "Tinggi" doesn't come out meaningfully more
-        // accurate than "Rendah" here, the confidence heuristic isn't actually tracking anything
-        // and is worth revisiting in ScoringEngine::confidenceFor().
+        // The raw breakdown, for display. $confidenceCalibration above is the same idea turned into
+        // an actionable suggestion once there's enough data to trust it.
         $byConfidence = $graded->whereNotNull('trading_confidence')
             ->groupBy('trading_confidence')
             ->map(fn ($rows, $level) => $this->summarize($rows, $level))
@@ -89,6 +90,7 @@ class AccuracyController extends Controller
             'byConfidence' => $byConfidence,
             'subScoreAccuracy' => $subScoreAccuracy,
             'weightSuggestions' => $weightSuggestions,
+            'confidenceCalibration' => $confidenceCalibration,
         ]);
     }
 

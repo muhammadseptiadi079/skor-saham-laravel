@@ -16,7 +16,7 @@ class AccuracyControllerTest extends TestCase
         $response = $this->getJson('/api/accuracy');
 
         $response->assertOk();
-        $response->assertJson(['sampleSize' => 0, 'accuracy' => null, 'byLabel' => [], 'byConfidence' => []]);
+        $response->assertJson(['sampleSize' => 0, 'accuracy' => null, 'byLabel' => [], 'byConfidence' => [], 'confidenceCalibration' => null]);
         $response->assertJsonStructure(['subScoreAccuracy' => [['subScore', 'sampleSize', 'directionalAccuracy']]]);
     }
 
@@ -179,6 +179,45 @@ class AccuracyControllerTest extends TestCase
         $this->assertEquals(100.0, $byConfidenceKeyed['Tinggi']['accuracy']);
         $this->assertSame(1, $byConfidenceKeyed['Rendah']['sampleSize']);
         $this->assertEquals(0.0, $byConfidenceKeyed['Rendah']['accuracy']);
+    }
+
+    public function test_confidence_calibration_is_null_when_tinggi_clearly_beats_rendah(): void
+    {
+        for ($i = 0; $i < 15; $i++) {
+            AnalysisHistory::create([
+                'ticker' => 'T'.uniqid(), 'market' => 'idx', 'trading_confidence' => 'Tinggi',
+                'outcome_correct' => true, 'forward_return' => 0.05, 'generated_at' => now(),
+            ]);
+            AnalysisHistory::create([
+                'ticker' => 'T'.uniqid(), 'market' => 'idx', 'trading_confidence' => 'Rendah',
+                'outcome_correct' => $i < 5, 'forward_return' => 0.01, 'generated_at' => now(),
+            ]);
+        }
+
+        $response = $this->getJson('/api/accuracy');
+
+        $response->assertOk();
+        $response->assertJsonPath('confidenceCalibration', null);
+    }
+
+    public function test_confidence_calibration_suggestion_appears_when_tinggi_is_not_better_than_rendah(): void
+    {
+        for ($i = 0; $i < 15; $i++) {
+            AnalysisHistory::create([
+                'ticker' => 'T'.uniqid(), 'market' => 'idx', 'trading_confidence' => 'Tinggi',
+                'outcome_correct' => $i < 7, 'forward_return' => 0.01, 'generated_at' => now(),
+            ]);
+            AnalysisHistory::create([
+                'ticker' => 'T'.uniqid(), 'market' => 'idx', 'trading_confidence' => 'Rendah',
+                'outcome_correct' => $i < 8, 'forward_return' => 0.01, 'generated_at' => now(),
+            ]);
+        }
+
+        $response = $this->getJson('/api/accuracy');
+
+        $response->assertOk();
+        $this->assertNotNull($response->json('confidenceCalibration'));
+        $this->assertStringContainsString('confidenceFor()', $response->json('confidenceCalibration.suggestion'));
     }
 
     public function test_weight_suggestion_appears_once_enough_poor_samples_accumulate(): void

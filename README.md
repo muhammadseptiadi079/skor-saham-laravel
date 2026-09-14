@@ -555,6 +555,33 @@ klasik yang belum ada:
   Rendah di panel Akurasi Historis, bukan urutan alfabet/urutan
   kemunculan data.
 
+## Round Kesepuluh: Skor Keyakinan Divalidasi Jadi Saran Nyata
+
+`byConfidence` (Round Kesembilan) baru menampilkan angka mentahnya — masih
+perlu manusia yang menyimpulkan sendiri apakah angkanya kelihatan wajar.
+Round ini menutup lingkarannya dengan menambahkan kesimpulan otomatisnya,
+persis pola yang sama dengan "Saran Evaluasi Bobot" di Round Kedelapan:
+
+- **Saran kalibrasi keyakinan** (`SubScoreAccuracyService::confidenceCalibrationSuggestion`,
+  field `confidenceCalibration` di `/api/accuracy`) — membandingkan akurasi
+  level "Tinggi" vs "Rendah" begitu **keduanya** punya ≥15 sampel graded.
+  Kalau gap-nya <10 poin persentase (termasuk kalau "Tinggi" ternyata malah
+  *lebih rendah* dari "Rendah" — inversi total), muncul catatan yang
+  menyebut angka aslinya dan menunjuk langsung ke bagian kode yang perlu
+  ditinjau: ambang rasio 0.8/0.5 dan `CONFIDENCE_NEUTRAL_BAND` di
+  `ScoringEngine::confidenceFor()`. Kalau gap-nya sudah cukup jelas, tidak
+  ada catatan sama sekali — panel tetap sepi selama semuanya kelihatan
+  wajar, sama seperti prinsip "Saran Evaluasi Bobot" (diam kalau tidak ada
+  yang perlu dikhawatirkan).
+- **Sengaja cuma bandingkan "Tinggi" vs "Rendah"**, skip "Sedang" — itu
+  ujian paling mendasar dari "apakah skor keyakinan ini membedakan apa pun
+  sama sekali", bukan uji kalibrasi yang halus per level. Kalau bahkan dua
+  ujung ekstrimnya saja tidak beda, meributkan "Sedang" belum ada gunanya.
+- **Tetap laporan untuk dibaca manusia, tidak pernah otomatis mengubah
+  `confidenceFor()`** — konsisten dengan `weightSuggestions`: sampel
+  sekecil ini (khususnya untuk aplikasi personal yang datanya lambat
+  terkumpul) terlalu berisiko untuk auto-tuning ambang batas.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -660,7 +687,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 189 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 196 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

@@ -106,4 +106,80 @@ class SubScoreAccuracyServiceTest extends TestCase
 
         $this->assertArrayNotHasKey('ownership', $suggestions);
     }
+
+    private function createConfidenceRow(string $confidence, bool $correct): void
+    {
+        AnalysisHistory::create([
+            'ticker' => 'T'.uniqid(), 'market' => 'idx',
+            'outcome_correct' => $correct, 'forward_return' => $correct ? 0.05 : -0.05,
+            'trading_confidence' => $confidence,
+            'generated_at' => now(),
+        ]);
+    }
+
+    public function test_confidence_accuracy_reports_each_level_in_high_to_low_order(): void
+    {
+        $this->createConfidenceRow('Tinggi', true);
+        $this->createConfidenceRow('Tinggi', true);
+        $this->createConfidenceRow('Rendah', false);
+
+        $report = app(SubScoreAccuracyService::class)->confidenceAccuracy();
+
+        $this->assertSame(['Tinggi', 'Sedang', 'Rendah'], array_column($report, 'level'));
+        $byLevel = collect($report)->keyBy('level');
+        $this->assertSame(2, $byLevel['Tinggi']['sampleSize']);
+        $this->assertEquals(100.0, $byLevel['Tinggi']['accuracy']);
+        $this->assertSame(0, $byLevel['Sedang']['sampleSize']);
+        $this->assertNull($byLevel['Sedang']['accuracy']);
+    }
+
+    public function test_no_calibration_suggestion_below_minimum_sample_size_per_level(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $this->createConfidenceRow('Tinggi', true); // 100% accurate but too few samples
+            $this->createConfidenceRow('Rendah', false); // 0% accurate but too few samples
+        }
+
+        $suggestion = app(SubScoreAccuracyService::class)->confidenceCalibrationSuggestion();
+
+        $this->assertNull($suggestion);
+    }
+
+    public function test_no_calibration_suggestion_when_tinggi_is_meaningfully_more_accurate(): void
+    {
+        for ($i = 0; $i < 15; $i++) {
+            $this->createConfidenceRow('Tinggi', true); // 100% accurate
+            $this->createConfidenceRow('Rendah', $i < 5); // 33% accurate
+        }
+
+        $suggestion = app(SubScoreAccuracyService::class)->confidenceCalibrationSuggestion();
+
+        $this->assertNull($suggestion);
+    }
+
+    public function test_calibration_suggestion_fires_when_tinggi_is_not_meaningfully_better_than_rendah(): void
+    {
+        for ($i = 0; $i < 15; $i++) {
+            $this->createConfidenceRow('Tinggi', $i < 8); // ~53% accurate
+            $this->createConfidenceRow('Rendah', $i < 7); // ~47% accurate — barely different
+        }
+
+        $suggestion = app(SubScoreAccuracyService::class)->confidenceCalibrationSuggestion();
+
+        $this->assertNotNull($suggestion);
+        $this->assertStringContainsString('confidenceFor()', $suggestion['suggestion']);
+    }
+
+    public function test_calibration_suggestion_fires_when_tinggi_is_actually_worse_than_rendah(): void
+    {
+        for ($i = 0; $i < 15; $i++) {
+            $this->createConfidenceRow('Tinggi', $i < 3); // 20% accurate — inverted!
+            $this->createConfidenceRow('Rendah', $i < 12); // 80% accurate
+        }
+
+        $suggestion = app(SubScoreAccuracyService::class)->confidenceCalibrationSuggestion();
+
+        $this->assertNotNull($suggestion);
+        $this->assertStringContainsString('malah lebih rendah', $suggestion['suggestion']);
+    }
 }

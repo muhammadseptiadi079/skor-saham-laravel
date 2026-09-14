@@ -148,6 +148,14 @@ export interface WeightSuggestion {
     suggestion: string;
 }
 
+export interface ConfidenceCalibration {
+    tinggiAccuracy: number;
+    tinggiSampleSize: number;
+    rendahAccuracy: number;
+    rendahSampleSize: number;
+    suggestion: string;
+}
+
 export interface AccuracyResponse {
     sampleSize: number;
     accuracy: number | null;
@@ -156,6 +164,7 @@ export interface AccuracyResponse {
     byMarketRegime: AccuracyByLabel[];
     byWatchlistSector: AccuracyByLabel[];
     byConfidence: AccuracyByLabel[];
+    confidenceCalibration: ConfidenceCalibration | null;
     subScoreAccuracy: SubScoreAccuracy[];
     weightSuggestions: WeightSuggestion[];
 }
