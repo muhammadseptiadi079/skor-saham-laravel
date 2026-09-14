@@ -479,6 +479,49 @@ round ini fokus ke kualitas *kesimpulan* dari sinyal yang sudah ada:
   seperti perbandingan P/E — sampel kecil dari watchlist sendiri, bukan
   data resmi sektor.
 
+## Round Kesembilan: Konflik Antar-Horizon, Kontrarian, OBV, dan Validasi Skor Keyakinan
+
+Round ini juga soal kualitas kesimpulan, ditambah satu indikator teknikal
+klasik yang belum ada:
+
+- **Peringatan konflik jangka pendek vs jangka panjang**
+  (`horizonAlignment` di respons `/api/analyze`) — label "Buy" jangka
+  panjang dan "Sell" trading jangka pendek **sama-sama valid sekaligus**
+  (dihitung dari sub-skor yang beda, lihat `ScoringEngine::WEIGHTS`), tapi
+  kalau dilihat sendiri-sendiri user bisa salah baca sebagai sinyal yang
+  kontradiktif/error. Sekarang begitu kedua horizon menyeberangi ambang
+  Buy/Sell (±0.15, sama seperti `labelFor`) ke arah berlawanan, muncul
+  catatan eksplisit di panel hasil analisis ("koreksi/rebound sementara,
+  bukan perubahan arah besar"). Tidak memengaruhi skor sama sekali — cuma
+  bikin konflik yang sudah ada di data jadi kelihatan.
+- **Catatan kontrarian saat konsensus analis kelewat seragam**
+  (di dalam catatan `analystRatings`, `ScoringEngine::contrarianConsensusNote`)
+  — begitu ≥5 analis dan ≥90% dari mereka searah (nyaris semua Buy atau
+  nyaris semua Sell), muncul catatan bahwa sebagian investor kontrarian
+  menganggap konsensus sekuat itu sebagai peringatan ("semua orang sudah
+  tahu" bisa berarti optimisme/pesimismenya sudah kepompong di harga).
+  **Ini cuma pengingat psikologi pasar, bukan sinyal terarah** — tidak ada
+  cara membuktikan lewat backtest apakah insting kontrarian ini benar untuk
+  saham tertentu, jadi sengaja tidak pernah masuk skor.
+- **On-Balance Volume / OBV** (`TechnicalIndicators::obv`,
+  `ScoringEngine::obvSignal`) — indikator teknikal klasik yang belum ada di
+  sub-skor momentum: volume ditambahkan ke running total saat harga naik,
+  dikurangi saat harga turun. Kalau arah OBV ~20 hari terakhir **sama**
+  dengan arah harga, itu konfirmasi (kenaikan/penurunan didukung tekanan
+  beli/jual yang nyata) — masuk skor dengan bobot kecil (±0.3). Kalau
+  **berlawanan** (misal harga naik tapi OBV turun), itu peringatan
+  divergence volume — arahnya cukup jelas secara teori teknikal klasik,
+  jadi masuk skor dengan bobot lebih besar (±0.5) dibanding sekadar
+  catatan.
+- **Akurasi historis dipecah per level keyakinan** (`byConfidence` di
+  `/api/accuracy`, kolom baru `trading_confidence` di `analysis_history`)
+  — memvalidasi skor keyakinan dari Round Kedelapan itu sendiri: kalau
+  akurasi "Tinggi" ternyata tidak jauh beda dari "Rendah", berarti skor
+  keyakinannya belum benar-benar menangkap apa-apa dan `confidenceFor()`
+  perlu ditinjau ulang. Ditampilkan sebagai tangga Tinggi → Sedang →
+  Rendah di panel Akurasi Historis, bukan urutan alfabet/urutan
+  kemunculan data.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -584,7 +627,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 163 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 176 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

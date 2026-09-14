@@ -82,6 +82,29 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
                 </div>
             )}
 
+            {data.byConfidence.length > 0 && (
+                <div className="mt-4 border-t border-white/10 pt-3">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                        Akurasi per Level Keyakinan
+                    </h4>
+                    <p className="mb-2 text-xs text-slate-500">
+                        Memvalidasi skor "Keyakinan" itu sendiri — kalau akurasi "Tinggi" ternyata tidak
+                        jauh beda dari "Rendah", berarti skor keyakinannya belum benar-benar berarti apa-apa.
+                    </p>
+                    <ul className="flex flex-col gap-1.5">
+                        {data.byConfidence.map((row) => (
+                            <li key={row.label} className="flex items-center justify-between gap-2 text-xs">
+                                <span className="text-slate-300">{row.label}</span>
+                                <span className="flex items-center gap-2 text-slate-500">
+                                    <span>{row.sampleSize} sampel</span>
+                                    <span className={`font-semibold ${accuracyColorClass(row.accuracy)}`}>{row.accuracy}%</span>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             {data.byWatchlistSector.length > 0 && (
                 <div className="mt-4 border-t border-white/10 pt-3">
                     <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">

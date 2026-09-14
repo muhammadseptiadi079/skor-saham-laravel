@@ -105,4 +105,24 @@ class TechnicalIndicatorsTest extends TestCase
 
         $this->assertNull($series[9]);
     }
+
+    public function test_obv_starts_at_zero_and_accumulates_volume_on_up_days(): void
+    {
+        $closes = [100, 105, 103, 110]; // up, down, up
+        $volumes = [1000, 2000, 3000, 4000];
+
+        $obv = TechnicalIndicators::obv($closes, $volumes);
+
+        $this->assertSame([0.0, 2000.0, -1000.0, 3000.0], $obv);
+    }
+
+    public function test_obv_stays_flat_on_an_unchanged_close(): void
+    {
+        $closes = [100, 100, 105];
+        $volumes = [1000, 2000, 3000];
+
+        $obv = TechnicalIndicators::obv($closes, $volumes);
+
+        $this->assertSame([0.0, 0.0, 3000.0], $obv);
+    }
 }

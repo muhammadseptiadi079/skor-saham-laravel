@@ -15,6 +15,10 @@ class AccuracyController extends Controller
 {
     private const REGIME_LABELS = ['bull' => 'Pasar Naik', 'bear' => 'Pasar Turun', 'sideways' => 'Pasar Sideways'];
 
+    // Fixed display order (high to low) rather than alphabetical/groupBy order, so the panel always
+    // reads as a ladder instead of shuffling around depending on which levels happen to have data.
+    private const CONFIDENCE_ORDER = ['Tinggi', 'Sedang', 'Rendah'];
+
     public function __construct(private SubScoreAccuracyService $subScoreAccuracy) {}
 
     public function index(Request $request)
@@ -33,7 +37,7 @@ class AccuracyController extends Controller
             $query->where('analysis_history.market', $market);
         }
 
-        $graded = $query->get(['trading_label', 'outcome_correct', 'forward_return', 'market_regime', 'sector']);
+        $graded = $query->get(['trading_label', 'trading_confidence', 'outcome_correct', 'forward_return', 'market_regime', 'sector']);
 
         if ($graded->isEmpty()) {
             return response()->json([
@@ -43,6 +47,7 @@ class AccuracyController extends Controller
                 'byLabel' => [],
                 'byMarketRegime' => [],
                 'byWatchlistSector' => [],
+                'byConfidence' => [],
                 'subScoreAccuracy' => $subScoreAccuracy,
                 'weightSuggestions' => $weightSuggestions,
             ]);
@@ -63,6 +68,15 @@ class AccuracyController extends Controller
             ->map(fn ($rows, $sector) => $this->summarize($rows, $sector))
             ->values();
 
+        // Validates the confidence score itself: if "Tinggi" doesn't come out meaningfully more
+        // accurate than "Rendah" here, the confidence heuristic isn't actually tracking anything
+        // and is worth revisiting in ScoringEngine::confidenceFor().
+        $byConfidence = $graded->whereNotNull('trading_confidence')
+            ->groupBy('trading_confidence')
+            ->map(fn ($rows, $level) => $this->summarize($rows, $level))
+            ->sortBy(fn ($row) => array_search($row['label'], self::CONFIDENCE_ORDER))
+            ->values();
+
         $totalCorrect = $graded->where('outcome_correct', true)->count();
 
         return response()->json([
@@ -72,6 +86,7 @@ class AccuracyController extends Controller
             'byLabel' => $byLabel,
             'byMarketRegime' => $byMarketRegime,
             'byWatchlistSector' => $byWatchlistSector,
+            'byConfidence' => $byConfidence,
             'subScoreAccuracy' => $subScoreAccuracy,
             'weightSuggestions' => $weightSuggestions,
         ]);

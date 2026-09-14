@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AnalysisHistory;
 use App\Models\ManualNewsItem;
 use App\Models\WatchlistItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -87,6 +88,7 @@ class AnalyzeControllerTest extends TestCase
             'subScores' => ['fundamentals', 'news', 'momentum', 'ownership'],
             'longterm' => ['score', 'label'],
             'trading' => ['score', 'label'],
+            'horizonAlignment' => ['aligned', 'note'],
             'disclaimer',
         ]);
         $response->assertJsonPath('ticker', 'BBCA');
@@ -97,6 +99,7 @@ class AnalyzeControllerTest extends TestCase
         $this->assertDatabaseHas('analysis_history', [
             'ticker' => 'BBCA', 'market' => 'idx', 'pe_ratio' => 12.0, 'peg_ratio' => 1.2,
         ]);
+        $this->assertNotNull(AnalysisHistory::first()->trading_confidence);
 
         // Internal-only fields used for the backtest/sector-valuation cache must never leak into
         // the public response.

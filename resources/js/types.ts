@@ -38,6 +38,11 @@ export interface HorizonResult {
     confidenceNote: string | null;
 }
 
+export interface HorizonAlignment {
+    aligned: boolean | null;
+    note: string | null;
+}
+
 export interface DataCompleteness {
     available: number;
     total: number;
@@ -60,6 +65,7 @@ export interface AnalysisResult {
     lowLiquidity: boolean;
     longterm: HorizonResult;
     trading: HorizonResult;
+    horizonAlignment: HorizonAlignment;
     disclaimer: string;
 }
 
@@ -149,6 +155,7 @@ export interface AccuracyResponse {
     byLabel: AccuracyByLabel[];
     byMarketRegime: AccuracyByLabel[];
     byWatchlistSector: AccuracyByLabel[];
+    byConfidence: AccuracyByLabel[];
     subScoreAccuracy: SubScoreAccuracy[];
     weightSuggestions: WeightSuggestion[];
 }

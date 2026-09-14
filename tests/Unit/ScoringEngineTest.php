@@ -803,4 +803,132 @@ class ScoringEngineTest extends TestCase
         $this->assertStringContainsString('ROE saham ini 5.0%', $notes);
         $this->assertStringContainsString('lebih rendah', $notes);
     }
+
+    public function test_horizon_alignment_is_null_when_either_score_is_unavailable(): void
+    {
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR');
+
+        $this->assertNull($result['horizonAlignment']['aligned']);
+        $this->assertNull($result['horizonAlignment']['note']);
+    }
+
+    public function test_horizon_alignment_is_true_when_both_horizons_agree(): void
+    {
+        $fundamentals = [
+            'revenueGrowthYoy' => 0.2, 'earningsGrowthYoy' => 0.2, 'profitMargin' => 0.25,
+            'returnOnEquity' => 0.25, 'peRatio' => 10, 'debtToEquity' => 0.2,
+        ];
+
+        $result = $this->engine->buildAnalysis($fundamentals, null, null, null, 'IDR');
+
+        $this->assertTrue($result['horizonAlignment']['aligned']);
+        $this->assertNull($result['horizonAlignment']['note']);
+    }
+
+    public function test_horizon_alignment_flags_conflict_between_trading_and_longterm_signals(): void
+    {
+        // Chronologically: price climbs 100 -> 179 over 80 days, then dips over the most recent 20
+        // days down to 139. Long-term trend is clearly up, but the 20-day trading window is down.
+        $pricesByAge = [];
+        for ($t = 0; $t < 100; $t++) {
+            $pricesByAge[$t] = $t <= 79 ? 100 + $t : 179 - ($t - 79) * 2;
+        }
+        $series = [];
+        foreach (array_reverse($pricesByAge) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertFalse($result['horizonAlignment']['aligned']);
+        $this->assertStringContainsString('berlawanan arah dengan tren jangka panjang', $result['horizonAlignment']['note']);
+    }
+
+    public function test_contrarian_note_added_when_analyst_consensus_is_nearly_unanimous_buy(): void
+    {
+        $fundamentals = ['analystRatings' => ['strongBuy' => 8, 'buy' => 2, 'hold' => 0, 'sell' => 0, 'strongSell' => 0]];
+
+        $result = $this->engine->buildAnalysis($fundamentals, null, null, null, 'USD');
+
+        $this->assertStringContainsString('nyaris seragam ke arah Buy', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_contrarian_note_added_when_analyst_consensus_is_nearly_unanimous_sell(): void
+    {
+        $fundamentals = ['analystRatings' => ['strongBuy' => 0, 'buy' => 0, 'hold' => 0, 'sell' => 2, 'strongSell' => 8]];
+
+        $result = $this->engine->buildAnalysis($fundamentals, null, null, null, 'USD');
+
+        $this->assertStringContainsString('nyaris seragam ke arah Sell', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_contrarian_note_skipped_with_too_few_analysts(): void
+    {
+        $fundamentals = ['analystRatings' => ['strongBuy' => 4, 'buy' => 0, 'hold' => 0, 'sell' => 0, 'strongSell' => 0]];
+
+        $result = $this->engine->buildAnalysis($fundamentals, null, null, null, 'USD');
+
+        $this->assertStringNotContainsString('kontrarian', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_contrarian_note_skipped_when_consensus_is_only_moderately_one_sided(): void
+    {
+        $fundamentals = ['analystRatings' => ['strongBuy' => 5, 'buy' => 3, 'hold' => 2, 'sell' => 0, 'strongSell' => 0]];
+
+        $result = $this->engine->buildAnalysis($fundamentals, null, null, null, 'USD');
+
+        $this->assertStringNotContainsString('kontrarian', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_obv_confirms_the_move_when_volume_backs_a_sustained_uptrend(): void
+    {
+        $chrono = range(100, 124); // 25 closes, strictly rising
+        $series = [];
+        foreach (array_reverse($chrono) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertStringContainsString('OBV (volume) ikut naik', implode(' ', $result['subScores']['momentum']['notes']));
+    }
+
+    public function test_obv_warns_when_price_rises_without_matching_volume_support(): void
+    {
+        // 19 down-days on heavy volume (OBV drags deeply negative), then one large up-day on
+        // negligible volume — price nets higher overall, but the volume trail disagrees.
+        $chrono = [200];
+        for ($i = 1; $i <= 19; $i++) {
+            $chrono[] = 200 - $i;
+        }
+        $chrono[] = end($chrono) + 150; // day 21: big jump up
+
+        $volumes = [100_000];
+        for ($i = 1; $i <= 19; $i++) {
+            $volumes[] = 100_000;
+        }
+        $volumes[] = 1;
+
+        $series = [];
+        foreach (array_reverse(array_keys($chrono)) as $i) {
+            $series[] = ['close' => $chrono[$i], 'volume' => $volumes[$i]];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertStringContainsString('Divergence OBV', implode(' ', $result['subScores']['momentum']['notes']));
+    }
+
+    public function test_obv_signal_skipped_when_not_enough_history(): void
+    {
+        $chrono = range(100, 119); // exactly 20 closes, below OBV's 21-close minimum
+        $series = [];
+        foreach (array_reverse($chrono) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertStringNotContainsString('OBV', implode(' ', $result['subScores']['momentum']['notes']));
+    }
 }

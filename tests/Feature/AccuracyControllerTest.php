@@ -16,7 +16,7 @@ class AccuracyControllerTest extends TestCase
         $response = $this->getJson('/api/accuracy');
 
         $response->assertOk();
-        $response->assertJson(['sampleSize' => 0, 'accuracy' => null, 'byLabel' => []]);
+        $response->assertJson(['sampleSize' => 0, 'accuracy' => null, 'byLabel' => [], 'byConfidence' => []]);
         $response->assertJsonStructure(['subScoreAccuracy' => [['subScore', 'sampleSize', 'directionalAccuracy']]]);
     }
 
@@ -145,6 +145,40 @@ class AccuracyControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonStructure(['weightSuggestions']);
+    }
+
+    public function test_aggregates_accuracy_by_confidence_level_in_high_to_low_order(): void
+    {
+        AnalysisHistory::create([
+            'ticker' => 'A', 'market' => 'idx', 'trading_label' => 'Buy', 'trading_confidence' => 'Tinggi',
+            'outcome_correct' => true, 'forward_return' => 0.08, 'generated_at' => now(),
+        ]);
+        AnalysisHistory::create([
+            'ticker' => 'B', 'market' => 'idx', 'trading_label' => 'Buy', 'trading_confidence' => 'Tinggi',
+            'outcome_correct' => true, 'forward_return' => 0.03, 'generated_at' => now(),
+        ]);
+        AnalysisHistory::create([
+            'ticker' => 'C', 'market' => 'idx', 'trading_label' => 'Sell', 'trading_confidence' => 'Rendah',
+            'outcome_correct' => false, 'forward_return' => -0.02, 'generated_at' => now(),
+        ]);
+        // Graded before trading_confidence existed -> excluded from this breakdown, still counts overall.
+        AnalysisHistory::create([
+            'ticker' => 'D', 'market' => 'idx', 'trading_label' => 'Buy', 'trading_confidence' => null,
+            'outcome_correct' => true, 'forward_return' => 0.01, 'generated_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/accuracy');
+
+        $response->assertOk();
+        $response->assertJsonPath('sampleSize', 4);
+
+        $byConfidence = $response->json('byConfidence');
+        $this->assertSame(['Tinggi', 'Rendah'], array_column($byConfidence, 'label'));
+        $byConfidenceKeyed = collect($byConfidence)->keyBy('label');
+        $this->assertSame(2, $byConfidenceKeyed['Tinggi']['sampleSize']);
+        $this->assertEquals(100.0, $byConfidenceKeyed['Tinggi']['accuracy']);
+        $this->assertSame(1, $byConfidenceKeyed['Rendah']['sampleSize']);
+        $this->assertEquals(0.0, $byConfidenceKeyed['Rendah']['accuracy']);
     }
 
     public function test_weight_suggestion_appears_once_enough_poor_samples_accumulate(): void

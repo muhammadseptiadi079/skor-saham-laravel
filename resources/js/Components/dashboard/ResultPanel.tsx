@@ -109,6 +109,12 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                 </GlassCard>
             </div>
 
+            {result.horizonAlignment.aligned === false && result.horizonAlignment.note && (
+                <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+                    {result.horizonAlignment.note}
+                </div>
+            )}
+
             <div className="mt-4 flex flex-wrap items-center gap-2">
                 {!inWatchlist && (
                     <select

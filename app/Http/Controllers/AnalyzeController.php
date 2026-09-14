@@ -64,6 +64,7 @@ class AnalyzeController extends Controller
                 'longterm_label' => $analysis['longterm']['label'] ?? null,
                 'trading_score' => $analysis['trading']['score'] ?? null,
                 'trading_label' => $analysis['trading']['label'] ?? null,
+                'trading_confidence' => $analysis['trading']['confidence'] ?? null,
                 'sub_scores' => $analysis['subScores'] ?? null,
                 'generated_at' => $analysis['generatedAt'],
                 'price_at_generation' => $analysis['priceAtGeneration'] ?? null,

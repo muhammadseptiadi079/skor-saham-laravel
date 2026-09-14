@@ -60,6 +60,7 @@ class ScoringEngine
         $tradingScore = $this->combine($subScores, 'trading');
         $longtermConfidence = $this->confidenceFor($subScores, 'longterm', $longtermScore);
         $tradingConfidence = $this->confidenceFor($subScores, 'trading', $tradingScore);
+        $horizonAlignment = $this->horizonAlignment($longtermScore, $tradingScore);
 
         $available = count(array_filter($subScores, fn ($s) => $s['score'] !== null));
 
@@ -93,6 +94,7 @@ class ScoringEngine
                 'confidence' => $tradingConfidence['level'],
                 'confidenceNote' => $tradingConfidence['note'],
             ],
+            'horizonAlignment' => $horizonAlignment,
             'disclaimer' => 'Ini analisis berbasis aturan sederhana (bukan prediksi yang terjamin akurat). '.
                 'Gunakan sebagai salah satu bahan pertimbangan, bukan satu-satunya dasar keputusan investasi/trading.',
         ];
@@ -177,6 +179,10 @@ class ScoringEngine
             $parts[] = $s;
             $notes[] = "Rekomendasi analis: {$r['strongBuy']} Strong Buy, {$r['buy']} Buy, {$r['hold']} Hold, ".
                 "{$r['sell']} Sell, {$r['strongSell']} Strong Sell dari {$total} analis ({$this->describe($s)})";
+            $contrarianNote = $this->contrarianConsensusNote($net, $total);
+            if ($contrarianNote) {
+                $notes[] = $contrarianNote;
+            }
         }
 
         if (count($parts) === 0) {
@@ -185,6 +191,35 @@ class ScoringEngine
         $score = $this->clamp(array_sum($parts) / count($parts));
 
         return ['score' => $score, 'notes' => [...$notes, ...$contextNotes]];
+    }
+
+    // Crowd-psychology heuristic, not a directional claim: when analyst opinion is nearly
+    // unanimous, some contrarian investors treat that as a caution flag rather than confirmation —
+    // "everyone already knows" can mean the optimism/pessimism is already fully priced in, leaving
+    // more room for a surprise in the opposite direction than the consensus suggests. There's no
+    // way to backtest whether that instinct is actually right for a given stock, so this stays a
+    // note only and is never added to $parts/the score.
+    private const CONTRARIAN_CONSENSUS_THRESHOLD = 0.9;
+
+    private const CONTRARIAN_MIN_ANALYSTS = 5;
+
+    private function contrarianConsensusNote(float $net, int $totalAnalysts): ?string
+    {
+        if ($totalAnalysts < self::CONTRARIAN_MIN_ANALYSTS) {
+            return null;
+        }
+        if ($net >= self::CONTRARIAN_CONSENSUS_THRESHOLD) {
+            return "Konsensus analis nyaris seragam ke arah Buy ({$totalAnalysts} analis) — sebagian investor kontrarian ".
+                'menganggap konsensus sekuat ini sebagai peringatan, karena optimismenya mungkin sudah sepenuhnya '.
+                'tercermin di harga (bukan sinyal terarah, cuma pengingat).';
+        }
+        if ($net <= -self::CONTRARIAN_CONSENSUS_THRESHOLD) {
+            return "Konsensus analis nyaris seragam ke arah Sell ({$totalAnalysts} analis) — sebagian investor kontrarian ".
+                'menganggap konsensus sekuat ini sebagai peringatan, karena pesimismenya mungkin sudah sepenuhnya '.
+                'tercermin di harga (bukan sinyal terarah, cuma pengingat).';
+        }
+
+        return null;
     }
 
     // Notes that add context but never move the score — no free data source exists to make them
@@ -353,10 +388,17 @@ class ScoringEngine
 
         // Technical indicators computed from as much history as the price series provides.
         // Each is optional — quietly skipped when there isn't enough history for it yet.
-        $closesChrono = array_values(array_filter(
-            array_reverse(array_column($series, 'close')),
-            fn ($c) => $c !== null
-        ));
+        // Volumes are kept index-aligned with closes (defaulting a missing volume to 0) rather
+        // than filtered independently, since OBV below needs the two series to march in lockstep.
+        $closesChrono = [];
+        $volumesChrono = [];
+        foreach (array_reverse($series) as $day) {
+            if ($day['close'] === null) {
+                continue;
+            }
+            $closesChrono[] = $day['close'];
+            $volumesChrono[] = $day['volume'] ?? 0;
+        }
 
         $rsi = TechnicalIndicators::rsi($closesChrono, 14);
         if ($rsi !== null) {
@@ -397,6 +439,12 @@ class ScoringEngine
         if ($divergence !== null) {
             $parts[] = $divergence['score'];
             $notes[] = $divergence['note'];
+        }
+
+        $obvSignal = $this->obvSignal($closesChrono, $volumesChrono, $momentum);
+        if ($obvSignal !== null) {
+            $parts[] = $obvSignal['score'];
+            $notes[] = $obvSignal['note'];
         }
 
         // Relative strength vs. a market index: outperforming the benchmark is a stronger bullish
@@ -499,6 +547,46 @@ class ScoringEngine
         return $isHigh
             ? ($last['value'] > $prev['value'] && $lastRsi < $prevRsi)
             : ($last['value'] < $prev['value'] && $lastRsi > $prevRsi);
+    }
+
+    // On-Balance Volume over the same ~20-day window as the price momentum figure above: if OBV
+    // moved the same direction as price, the volume behind the move backs it up ("confirmation").
+    // If they disagree — price up while OBV is flat/down, or price down while OBV is flat/up — the
+    // move happened without matching buying/selling pressure, a classic warning that it may not
+    // hold. Needs 21 closes so the 20-day OBV change has a defined starting point.
+    private function obvSignal(array $closesChrono, array $volumesChrono, float $priceMomentum): ?array
+    {
+        if (count($closesChrono) < 21) {
+            return null;
+        }
+
+        $window = array_slice($closesChrono, -21);
+        $volWindow = array_slice($volumesChrono, -21);
+        $obv = TechnicalIndicators::obv($window, $volWindow);
+        $obvChange = end($obv) - $obv[0];
+
+        if ($obvChange === 0.0 || $priceMomentum === 0.0) {
+            return null;
+        }
+
+        $obvUp = $obvChange > 0;
+        $priceUp = $priceMomentum > 0;
+
+        if ($obvUp === $priceUp) {
+            $score = $priceUp ? 0.3 : -0.3;
+            $note = $priceUp
+                ? 'OBV (volume) ikut naik seiring harga dalam ~20 hari terakhir — kenaikan didukung tekanan beli yang nyata (konfirmasi).'
+                : 'OBV (volume) ikut turun seiring harga dalam ~20 hari terakhir — penurunan didukung tekanan jual yang nyata (konfirmasi).';
+
+            return ['score' => $score, 'note' => $note];
+        }
+
+        $score = $priceUp ? -0.5 : 0.5;
+        $note = $priceUp
+            ? 'Divergence OBV: harga naik dalam ~20 hari terakhir tapi volume (OBV) justru menurun — kenaikan ini kurang didukung minat beli riil, waspada.'
+            : 'Divergence OBV: harga turun dalam ~20 hari terakhir tapi volume (OBV) justru naik — ada indikasi akumulasi di balik penurunan harga, potensi pembalikan.';
+
+        return ['score' => $score, 'note' => $note];
     }
 
     // Nearest support/resistance from swing highs/lows in the price history the series provides
@@ -949,6 +1037,49 @@ class ScoringEngine
             ($neutral > 0 ? " ({$neutral} netral)" : '').'.';
 
         return ['level' => $level, 'note' => $note];
+    }
+
+    // A short-term trading signal and the long-term trend are computed from largely different
+    // sub-scores (see WEIGHTS) and can legitimately point opposite ways — e.g. a stock in a solid
+    // multi-year uptrend can still look like a short-term Sell after a hot run-up. Neither is
+    // "wrong"; this just makes the disagreement visible instead of leaving the user to notice it
+    // themselves by eyeballing both gauges. Reuses labelFor()'s own 0.15 neutral band so "aligned"
+    // and "conflicting" agree with how the labels themselves are drawn.
+    private function horizonAlignment(?float $longtermScore, ?float $tradingScore): array
+    {
+        if ($longtermScore === null || $tradingScore === null) {
+            return ['aligned' => null, 'note' => null];
+        }
+
+        $longDir = $this->direction($longtermScore);
+        $tradeDir = $this->direction($tradingScore);
+        if ($longDir === 0 || $tradeDir === 0) {
+            return ['aligned' => null, 'note' => null];
+        }
+
+        if ($longDir === $tradeDir) {
+            return ['aligned' => true, 'note' => null];
+        }
+
+        $note = "Sinyal trading ({$this->labelFor($tradingScore)}) berlawanan arah dengan tren jangka panjang ".
+            "({$this->labelFor($longtermScore)}) — pertimbangkan apakah ini cuma koreksi/rebound sementara, ".
+            'bukan perubahan arah besar.';
+
+        return ['aligned' => false, 'note' => $note];
+    }
+
+    // Buy/Sell threshold (0.15) shared with labelFor() so "has a clear direction" means the same
+    // thing everywhere a score is turned into a directional call.
+    private function direction(float $score): int
+    {
+        if ($score >= 0.15) {
+            return 1;
+        }
+        if ($score <= -0.15) {
+            return -1;
+        }
+
+        return 0;
     }
 
     private function labelFor(?float $score): string

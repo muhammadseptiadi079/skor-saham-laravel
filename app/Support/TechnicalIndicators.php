@@ -163,6 +163,29 @@ class TechnicalIndicators
         return $series;
     }
 
+    // On-Balance Volume: a running total that adds the day's volume when price closes up and
+    // subtracts it when price closes down (unchanged closes leave it flat). The classic reading is
+    // that OBV should broadly move the same direction as price — if it doesn't, the volume behind
+    // the move disagrees with what the price alone suggests. $volumesChrono must be the same
+    // length as $closesChrono and index-aligned with it (missing volume days should be passed as 0
+    // by the caller, not omitted, or the two series drift out of alignment).
+    public static function obv(array $closesChrono, array $volumesChrono): array
+    {
+        $n = count($closesChrono);
+        $obv = array_fill(0, $n, 0.0);
+        for ($i = 1; $i < $n; $i++) {
+            if ($closesChrono[$i] > $closesChrono[$i - 1]) {
+                $obv[$i] = $obv[$i - 1] + $volumesChrono[$i];
+            } elseif ($closesChrono[$i] < $closesChrono[$i - 1]) {
+                $obv[$i] = $obv[$i - 1] - $volumesChrono[$i];
+            } else {
+                $obv[$i] = $obv[$i - 1];
+            }
+        }
+
+        return $obv;
+    }
+
     // Exponential moving average over the whole series, seeded with the first value.
     private static function emaSeries(array $values, int $period): array
     {
