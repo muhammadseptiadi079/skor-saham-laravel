@@ -16,7 +16,8 @@ class AccuracyControllerTest extends TestCase
         $response = $this->getJson('/api/accuracy');
 
         $response->assertOk();
-        $response->assertJson(['sampleSize' => 0, 'accuracy' => null, 'byLabel' => [], 'byConfidence' => [], 'confidenceCalibration' => null]);
+        $response->assertJson(['sampleSize' => 0, 'accuracy' => null, 'byLabel' => [], 'byConfidence' => []]);
+        $response->assertJsonPath('confidenceCalibration.status', 'insufficient_data');
         $response->assertJsonStructure(['subScoreAccuracy' => [['subScore', 'sampleSize', 'directionalAccuracy']]]);
     }
 
@@ -181,7 +182,7 @@ class AccuracyControllerTest extends TestCase
         $this->assertEquals(0.0, $byConfidenceKeyed['Rendah']['accuracy']);
     }
 
-    public function test_confidence_calibration_is_null_when_tinggi_clearly_beats_rendah(): void
+    public function test_confidence_calibration_is_ok_when_tinggi_clearly_beats_rendah(): void
     {
         for ($i = 0; $i < 15; $i++) {
             AnalysisHistory::create([
@@ -197,10 +198,10 @@ class AccuracyControllerTest extends TestCase
         $response = $this->getJson('/api/accuracy');
 
         $response->assertOk();
-        $response->assertJsonPath('confidenceCalibration', null);
+        $response->assertJsonPath('confidenceCalibration.status', 'ok');
     }
 
-    public function test_confidence_calibration_suggestion_appears_when_tinggi_is_not_better_than_rendah(): void
+    public function test_confidence_calibration_needs_review_when_tinggi_is_not_better_than_rendah(): void
     {
         for ($i = 0; $i < 15; $i++) {
             AnalysisHistory::create([
@@ -216,8 +217,8 @@ class AccuracyControllerTest extends TestCase
         $response = $this->getJson('/api/accuracy');
 
         $response->assertOk();
-        $this->assertNotNull($response->json('confidenceCalibration'));
-        $this->assertStringContainsString('confidenceFor()', $response->json('confidenceCalibration.suggestion'));
+        $response->assertJsonPath('confidenceCalibration.status', 'needs_review');
+        $this->assertStringContainsString('confidenceFor()', $response->json('confidenceCalibration.message'));
     }
 
     public function test_weight_suggestion_appears_once_enough_poor_samples_accumulate(): void

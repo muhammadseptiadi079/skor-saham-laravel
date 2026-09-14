@@ -23,7 +23,7 @@ class SubScoreAccuracyService
 
     private const HIGH_ACCURACY_THRESHOLD = 65.0;
 
-    // Confidence calibration check (see confidenceCalibrationSuggestion()): each end needs this
+    // Confidence calibration check (see confidenceCalibrationReport()): each end needs this
     // many graded samples before comparing them means anything, for the same reason
     // MIN_SAMPLE_FOR_SUGGESTION exists above — lower than that constant because splitting the
     // sample three ways (Tinggi/Sedang/Rendah) means each bucket fills up slower.
@@ -35,6 +35,12 @@ class SubScoreAccuracyService
     private const MEANINGFUL_CONFIDENCE_GAP = 10.0;
 
     private const CONFIDENCE_LEVELS = ['Tinggi', 'Sedang', 'Rendah'];
+
+    private const STATUS_INSUFFICIENT_DATA = 'insufficient_data';
+
+    private const STATUS_OK = 'ok';
+
+    private const STATUS_NEEDS_REVIEW = 'needs_review';
 
     /** @return array<int, array{subScore: string, sampleSize: int, directionalAccuracy: float|null}> */
     public function report(?string $market = null): array
@@ -135,32 +141,47 @@ class SubScoreAccuracyService
     // starkest test of whether the confidence score is distinguishing anything at all; if even
     // Tinggi-vs-Rendah isn't clearly separated, the ambang (threshold) in confidenceFor() — the
     // 0.8/0.5 agreement-ratio cutoffs — is a reasonable first place to look.
-    public function confidenceCalibrationSuggestion(?string $market = null): ?array
+    //
+    // Unlike weightSuggestions() this always returns something, never null: a report that goes
+    // silent while data is still accumulating looks indistinguishable from a report that's broken.
+    // `status` tells the caller which of three states this is — insufficient_data (not enough
+    // samples yet to say anything), ok (calibration looks fine, nothing to act on), or
+    // needs_review (the gap isn't meaningful) — and `message` is always a ready-to-display sentence
+    // for whichever state it is.
+    /** @return array{status: string, tinggiAccuracy: float|null, tinggiSampleSize: int, rendahAccuracy: float|null, rendahSampleSize: int, sampleNeededPerLevel: int, message: string} */
+    public function confidenceCalibrationReport(?string $market = null): array
     {
         $byLevel = collect($this->confidenceAccuracy($market))->keyBy('level');
         $tinggi = $byLevel['Tinggi'];
         $rendah = $byLevel['Rendah'];
+        $needed = self::MIN_SAMPLE_PER_CONFIDENCE_LEVEL;
 
-        if ($tinggi['sampleSize'] < self::MIN_SAMPLE_PER_CONFIDENCE_LEVEL || $rendah['sampleSize'] < self::MIN_SAMPLE_PER_CONFIDENCE_LEVEL) {
-            return null;
-        }
-
-        $gap = $tinggi['accuracy'] - $rendah['accuracy'];
-        if ($gap >= self::MEANINGFUL_CONFIDENCE_GAP) {
-            return null;
-        }
-
-        $verb = $gap <= 0 ? 'malah lebih rendah dari atau sama dengan' : 'tidak jauh berbeda dari';
-
-        return [
+        $base = [
             'tinggiAccuracy' => $tinggi['accuracy'],
             'tinggiSampleSize' => $tinggi['sampleSize'],
             'rendahAccuracy' => $rendah['accuracy'],
             'rendahSampleSize' => $rendah['sampleSize'],
-            'suggestion' => "Akurasi \"Tinggi\" ({$tinggi['accuracy']}% dari {$tinggi['sampleSize']} sampel) {$verb} akurasi ".
-                "\"Rendah\" ({$rendah['accuracy']}% dari {$rendah['sampleSize']} sampel) — skor keyakinan ini belum kelihatan ".
-                'benar-benar membedakan mana kesimpulan yang lebih bisa dipercaya. Pertimbangkan tinjau ulang ambang di '.
-                'ScoringEngine::confidenceFor() (CONFIDENCE_NEUTRAL_BAND dan batas rasio 0.8/0.5).',
+            'sampleNeededPerLevel' => $needed,
         ];
+
+        if ($tinggi['sampleSize'] < $needed || $rendah['sampleSize'] < $needed) {
+            return [...$base, 'status' => self::STATUS_INSUFFICIENT_DATA, 'message' => "Baru {$tinggi['sampleSize']} dari {$needed} sampel graded di level \"Tinggi\" dan {$rendah['sampleSize']} dari {$needed} ".
+                'di "Rendah" — belum cukup untuk menilai apakah skor keyakinan ini valid. Jalankan `php artisan '.
+                'stocks:evaluate-backtest` secara berkala supaya datanya terkumpul.'];
+        }
+
+        $gap = round($tinggi['accuracy'] - $rendah['accuracy'], 1);
+        if ($gap >= self::MEANINGFUL_CONFIDENCE_GAP) {
+            return [...$base, 'status' => self::STATUS_OK, 'message' => "Kalibrasi terlihat baik: akurasi \"Tinggi\" ({$tinggi['accuracy']}% dari {$tinggi['sampleSize']} sampel) lebih ".
+                "tinggi {$gap} poin dari \"Rendah\" ({$rendah['accuracy']}% dari {$rendah['sampleSize']} sampel) — skor keyakinan ".
+                'ini kelihatan benar-benar membedakan mana kesimpulan yang lebih bisa dipercaya.'];
+        }
+
+        $verb = $gap <= 0 ? 'malah lebih rendah dari atau sama dengan' : 'tidak jauh berbeda dari';
+
+        return [...$base, 'status' => self::STATUS_NEEDS_REVIEW, 'message' => "Akurasi \"Tinggi\" ({$tinggi['accuracy']}% dari {$tinggi['sampleSize']} sampel) {$verb} akurasi ".
+            "\"Rendah\" ({$rendah['accuracy']}% dari {$rendah['sampleSize']} sampel) — skor keyakinan ini belum kelihatan ".
+            'benar-benar membedakan mana kesimpulan yang lebih bisa dipercaya. Pertimbangkan tinjau ulang ambang di '.
+            'ScoringEngine::confidenceFor() (CONFIDENCE_NEUTRAL_BAND dan batas rasio 0.8/0.5).'];
     }
 }

@@ -1,4 +1,4 @@
-import type { AccuracyResponse } from '@/types';
+import type { AccuracyResponse, ConfidenceCalibration } from '@/types';
 import Panel from './Panel';
 import { GaugeIcon } from '@/Components/Icons';
 
@@ -17,8 +17,34 @@ function accuracyColorClass(accuracy: number): string {
     return 'text-rose-400';
 }
 
+// Always rendered, in one of three states — a report that goes quiet while data is still
+// accumulating reads as broken, not as "nothing to say yet" (see confidenceCalibrationReport()
+// on the backend for the same reasoning).
+function calibrationBoxClass(status: ConfidenceCalibration['status']): string {
+    if (status === 'ok') return 'border-emerald-400/20 bg-emerald-400/5 text-emerald-200';
+    if (status === 'needs_review') return 'border-amber-400/20 bg-amber-400/5 text-amber-200';
+
+    return 'border-white/10 bg-white/5 text-slate-400';
+}
+
+function CalibrationNote({ calibration }: { calibration: ConfidenceCalibration }) {
+    return (
+        <p className={`mt-2 rounded-xl border px-3 py-2 text-xs ${calibrationBoxClass(calibration.status)}`}>
+            {calibration.message}
+        </p>
+    );
+}
+
 export default function AccuracyPanel({ data }: { data: AccuracyResponse | null }) {
-    if (!data || data.sampleSize === 0) {
+    if (!data) {
+        return (
+            <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-sky-300" />}>
+                <p className="text-sm text-slate-500">Memuat data akurasi...</p>
+            </Panel>
+        );
+    }
+
+    if (data.sampleSize === 0) {
         return (
             <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-sky-300" />}>
                 <p className="text-sm text-slate-500">
@@ -26,6 +52,7 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
                     setelah ~1 bulan (lewat <code className="rounded bg-white/10 px-1 py-0.5 text-xs">php artisan stocks:evaluate-backtest</code>),
                     supaya ada cukup waktu untuk tahu apakah arah harganya benar.
                 </p>
+                <CalibrationNote calibration={data.confidenceCalibration} />
             </Panel>
         );
     }
@@ -82,15 +109,15 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
                 </div>
             )}
 
-            {data.byConfidence.length > 0 && (
-                <div className="mt-4 border-t border-white/10 pt-3">
-                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
-                        Akurasi per Level Keyakinan
-                    </h4>
-                    <p className="mb-2 text-xs text-slate-500">
-                        Memvalidasi skor "Keyakinan" itu sendiri — kalau akurasi "Tinggi" ternyata tidak
-                        jauh beda dari "Rendah", berarti skor keyakinannya belum benar-benar berarti apa-apa.
-                    </p>
+            <div className="mt-4 border-t border-white/10 pt-3">
+                <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                    Akurasi per Level Keyakinan
+                </h4>
+                <p className="mb-2 text-xs text-slate-500">
+                    Memvalidasi skor "Keyakinan" itu sendiri — kalau akurasi "Tinggi" ternyata tidak
+                    jauh beda dari "Rendah", berarti skor keyakinannya belum benar-benar berarti apa-apa.
+                </p>
+                {data.byConfidence.length > 0 && (
                     <ul className="flex flex-col gap-1.5">
                         {data.byConfidence.map((row) => (
                             <li key={row.label} className="flex items-center justify-between gap-2 text-xs">
@@ -102,13 +129,9 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
                             </li>
                         ))}
                     </ul>
-                    {data.confidenceCalibration && (
-                        <p className="mt-2 rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
-                            {data.confidenceCalibration.suggestion}
-                        </p>
-                    )}
-                </div>
-            )}
+                )}
+                <CalibrationNote calibration={data.confidenceCalibration} />
+            </div>
 
             {data.byWatchlistSector.length > 0 && (
                 <div className="mt-4 border-t border-white/10 pt-3">

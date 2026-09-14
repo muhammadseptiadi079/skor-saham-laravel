@@ -149,11 +149,13 @@ export interface WeightSuggestion {
 }
 
 export interface ConfidenceCalibration {
-    tinggiAccuracy: number;
+    status: 'insufficient_data' | 'ok' | 'needs_review';
+    tinggiAccuracy: number | null;
     tinggiSampleSize: number;
-    rendahAccuracy: number;
+    rendahAccuracy: number | null;
     rendahSampleSize: number;
-    suggestion: string;
+    sampleNeededPerLevel: number;
+    message: string;
 }
 
 export interface AccuracyResponse {
@@ -164,7 +166,7 @@ export interface AccuracyResponse {
     byMarketRegime: AccuracyByLabel[];
     byWatchlistSector: AccuracyByLabel[];
     byConfidence: AccuracyByLabel[];
-    confidenceCalibration: ConfidenceCalibration | null;
+    confidenceCalibration: ConfidenceCalibration;
     subScoreAccuracy: SubScoreAccuracy[];
     weightSuggestions: WeightSuggestion[];
 }

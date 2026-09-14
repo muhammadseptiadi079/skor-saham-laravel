@@ -26,7 +26,7 @@ class AccuracyController extends Controller
         $market = $request->query('market');
         $subScoreAccuracy = $this->subScoreAccuracy->report($market);
         $weightSuggestions = $this->subScoreAccuracy->weightSuggestions($market);
-        $confidenceCalibration = $this->subScoreAccuracy->confidenceCalibrationSuggestion($market);
+        $confidenceCalibration = $this->subScoreAccuracy->confidenceCalibrationReport($market);
 
         $query = AnalysisHistory::query()
             ->whereNotNull('outcome_correct')

@@ -562,17 +562,27 @@ perlu manusia yang menyimpulkan sendiri apakah angkanya kelihatan wajar.
 Round ini menutup lingkarannya dengan menambahkan kesimpulan otomatisnya,
 persis pola yang sama dengan "Saran Evaluasi Bobot" di Round Kedelapan:
 
-- **Saran kalibrasi keyakinan** (`SubScoreAccuracyService::confidenceCalibrationSuggestion`,
+- **Laporan kalibrasi keyakinan** (`SubScoreAccuracyService::confidenceCalibrationReport`,
   field `confidenceCalibration` di `/api/accuracy`) — membandingkan akurasi
   level "Tinggi" vs "Rendah" begitu **keduanya** punya ≥15 sampel graded.
   Kalau gap-nya <10 poin persentase (termasuk kalau "Tinggi" ternyata malah
-  *lebih rendah* dari "Rendah" — inversi total), muncul catatan yang
-  menyebut angka aslinya dan menunjuk langsung ke bagian kode yang perlu
-  ditinjau: ambang rasio 0.8/0.5 dan `CONFIDENCE_NEUTRAL_BAND` di
-  `ScoringEngine::confidenceFor()`. Kalau gap-nya sudah cukup jelas, tidak
-  ada catatan sama sekali — panel tetap sepi selama semuanya kelihatan
-  wajar, sama seperti prinsip "Saran Evaluasi Bobot" (diam kalau tidak ada
-  yang perlu dikhawatirkan).
+  *lebih rendah* dari "Rendah" — inversi total), pesannya menyebut angka
+  aslinya dan menunjuk langsung ke bagian kode yang perlu ditinjau: ambang
+  rasio 0.8/0.5 dan `CONFIDENCE_NEUTRAL_BAND` di `ScoringEngine::confidenceFor()`.
+- **Selalu tampil, tidak pernah diam-diam kosong** — percobaan pertama
+  fitur ini cuma muncul kalau ada yang perlu dikhawatirkan (meniru pola
+  "Saran Evaluasi Bobot"), tapi ternyata itu bikin bingung: aplikasi yang
+  baru dipakai (belum ada satu pun sampel backtest) kelihatan seperti
+  fiturnya tidak ada sama sekali, padahal cuma belum ada datanya. Sekarang
+  `confidenceCalibration` selalu mengembalikan salah satu dari tiga status,
+  dan panelnya selalu menampilkan pesannya:
+  - `insufficient_data` — belum cukup sampel di salah satu/kedua level,
+    pesannya bilang persis berapa sampel yang sudah terkumpul dari berapa
+    yang dibutuhkan (kotak abu-abu netral).
+  - `ok` — gap-nya sudah jelas, keyakinan "Tinggi" memang meyakinkan
+    (kotak hijau).
+  - `needs_review` — gap-nya tidak meyakinkan atau malah terbalik, saran
+    tinjau ulang `confidenceFor()` (kotak kuning).
 - **Sengaja cuma bandingkan "Tinggi" vs "Rendah"**, skip "Sedang" — itu
   ujian paling mendasar dari "apakah skor keyakinan ini membedakan apa pun
   sama sekali", bukan uji kalibrasi yang halus per level. Kalau bahkan dua
