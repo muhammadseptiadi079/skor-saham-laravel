@@ -391,6 +391,39 @@ diekstrak lewat OCR. Ditangani oleh `App\Http\Controllers\ManualNewsController`
   otomatis skip di mesin yang tidak punya `tesseract-ocr` ter-install,
   supaya suite test tetap portable.
 
+**Tidak perlu pilih ticker dulu** — awalnya panel ini mengharuskan user
+mengetik ticker sebelum menempel/upload beritanya, padahal justru itu yang
+sering tidak diketahui user saat baru baca beritanya. Sekarang alurnya
+dibalik lewat `App\Services\TickerDetectionService` dan endpoint
+`POST /api/news/manual/detect`:
+
+1. User cuma ketik/upload berita, klik "Analisis" — tanpa ticker.
+2. Server (OCR dulu kalau screenshot) mencocokkan teksnya ke setiap
+   ticker/nama perusahaan yang **sudah dikenal aplikasi ini**: watchlist
+   user, daftar kurasi `stock_universe_items`, dan `SectorStarterPacks`
+   (nama IDX yang sudah dikurasi manual, lihat bagian "Fitur baru" di
+   bawah). Cocoknya berupa kode ticker yang muncul sebagai kata utuh
+   berhuruf besar ("BBCA naik 2%" cocok, "goto" huruf kecil di kalimat
+   biasa tidak) atau nama perusahaan (setelah suffiks badan hukum seperti
+   "Tbk"/"Inc" dibuang) muncul sebagai substring di teksnya — pencocokan
+   string biasa, bukan ML, konsisten dengan filosofi "setiap langkah bisa
+   dijelaskan" di `ScoringEngine`.
+3. Tepat satu ticker cocok → langsung tersimpan ke ticker itu, tidak ada
+   langkah tambahan.
+4. Beberapa ticker cocok (misal beritanya menyebut dua bank sekaligus) →
+   muncul pilihan tombol, user tinggal klik yang dimaksud.
+5. Tidak ada yang cocok (perusahaan yang belum pernah di-watchlist/dikenal
+   aplikasi ini) → fallback ke input ticker manual seperti sebelumnya,
+   supaya tetap bisa disimpan.
+
+**Keterbatasan yang jujur**: deteksi ini cuma sebagus daftar nama yang
+diketahui — ticker global (AAPL, TSLA, dst.) hampir seluruhnya diandalkan
+dari kode tickernya sendiri karena tidak ada daftar nama perusahaan global
+yang dikurasi di aplikasi ini (beda dengan IDX yang punya `SectorStarterPacks`
+sebagai fallback), jadi berita tentang saham global yang belum pernah
+di-watchlist/dianalisis kemungkinan besar tidak ke-detect dan jatuh ke
+fallback manual.
+
 ## Round Ketujuh: Kepemilikan, Dividen, Level Teknikal, Risk-Adjusted Momentum, dan Portfolio Tracker
 
 Empat catatan analisis baru (masih rule-based, numpang di request yang sudah
@@ -627,7 +660,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 176 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 189 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

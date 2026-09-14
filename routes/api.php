@@ -32,6 +32,7 @@ Route::get('/ipo', [IpoController::class, 'index']);
 Route::get('/accuracy', [AccuracyController::class, 'index']);
 
 Route::get('/news/manual', [ManualNewsController::class, 'index']);
+Route::post('/news/manual/detect', [ManualNewsController::class, 'detect']);
 Route::post('/news/manual', [ManualNewsController::class, 'store']);
 Route::delete('/news/manual/{manualNewsItem}', [ManualNewsController::class, 'destroy']);
 

@@ -7,6 +7,7 @@ import type {
     ApiError,
     HistoryEntry,
     IpoListing,
+    ManualNewsDetectResult,
     ManualNewsItem,
     Market,
     PortfolioResponse,
@@ -118,12 +119,21 @@ export function submitManualNewsText(ticker: string, market: Market, text: strin
     }).then((res) => asJson<ManualNewsItem>(res));
 }
 
-export function submitManualNewsImage(ticker: string, market: Market, image: File): Promise<ManualNewsItem> {
+// Resolves which stock(s) a piece of news is about *before* the caller needs to know a ticker —
+// OCRs a screenshot if one is given, then matches the resulting text against every ticker/company
+// name this app already knows about. See TickerDetectionService for how matching works.
+export function detectManualNewsText(text: string): Promise<ManualNewsDetectResult> {
+    return fetch('/api/news/manual/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+    }).then((res) => asJson<ManualNewsDetectResult>(res));
+}
+
+export function detectManualNewsImage(image: File): Promise<ManualNewsDetectResult> {
     const form = new FormData();
-    form.set('ticker', ticker);
-    form.set('market', market);
     form.set('image', image);
-    return fetch('/api/news/manual', { method: 'POST', body: form }).then((res) => asJson<ManualNewsItem>(res));
+    return fetch('/api/news/manual/detect', { method: 'POST', body: form }).then((res) => asJson<ManualNewsDetectResult>(res));
 }
 
 export function removeManualNews(id: number): Promise<void> {

@@ -214,3 +214,14 @@ export interface ManualNewsItem {
     matchedKeywords: { positive: string[]; negative: string[] };
     createdAt: string;
 }
+
+export interface TickerCandidate {
+    ticker: string;
+    market: Market;
+    name: string | null;
+}
+
+export interface ManualNewsDetectResult {
+    text: string;
+    candidates: TickerCandidate[];
+}

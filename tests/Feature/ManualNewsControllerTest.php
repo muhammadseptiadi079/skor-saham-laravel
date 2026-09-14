@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ManualNewsItem;
+use App\Models\WatchlistItem;
 use App\Services\ImageTextExtractionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -101,6 +102,77 @@ class ManualNewsControllerTest extends TestCase
         $response->assertStatus(422);
         $response->assertJsonPath('error', 'ocr_empty');
         $this->assertDatabaseCount('manual_news_items', 0);
+    }
+
+    public function test_detect_auto_resolves_a_single_candidate_from_typed_text(): void
+    {
+        WatchlistItem::create(['ticker' => 'BBCA', 'market' => 'idx', 'name' => 'Bank Central Asia Tbk']);
+
+        $response = $this->postJson('/api/news/manual/detect', [
+            'text' => 'BBCA melaporkan laba bersih naik tahun ini',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('text', 'BBCA melaporkan laba bersih naik tahun ini');
+        $response->assertJsonCount(1, 'candidates');
+        $response->assertJsonPath('candidates.0.ticker', 'BBCA');
+        $response->assertJsonPath('candidates.0.market', 'idx');
+    }
+
+    public function test_detect_returns_several_candidates_when_text_is_ambiguous(): void
+    {
+        WatchlistItem::create(['ticker' => 'BBCA', 'market' => 'idx', 'name' => 'Bank Central Asia Tbk']);
+        WatchlistItem::create(['ticker' => 'BBRI', 'market' => 'idx', 'name' => 'Bank Rakyat Indonesia Tbk']);
+
+        $response = $this->postJson('/api/news/manual/detect', [
+            'text' => 'Saham perbankan BBCA dan BBRI kompak menguat',
+        ]);
+
+        $response->assertOk();
+        $tickers = collect($response->json('candidates'))->pluck('ticker');
+        $this->assertTrue($tickers->contains('BBCA'));
+        $this->assertTrue($tickers->contains('BBRI'));
+    }
+
+    public function test_detect_returns_empty_candidates_for_unrecognized_text(): void
+    {
+        $response = $this->postJson('/api/news/manual/detect', [
+            'text' => 'Cuaca hari ini cerah berawan di seluruh Jakarta',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonCount(0, 'candidates');
+    }
+
+    public function test_detect_works_with_a_screenshot_via_ocr(): void
+    {
+        WatchlistItem::create(['ticker' => 'ANTM', 'market' => 'idx', 'name' => 'Aneka Tambang Tbk']);
+
+        $fake = Mockery::mock(ImageTextExtractionService::class);
+        $fake->shouldReceive('extractText')->once()->andReturn('Saham ANTM melonjak setelah laba naik');
+        $this->app->instance(ImageTextExtractionService::class, $fake);
+
+        $response = $this->postJson('/api/news/manual/detect', [
+            'image' => UploadedFile::fake()->image('screenshot.png'),
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('text', 'Saham ANTM melonjak setelah laba naik');
+        $response->assertJsonPath('candidates.0.ticker', 'ANTM');
+    }
+
+    public function test_detect_returns_422_when_ocr_extracts_no_text(): void
+    {
+        $fake = Mockery::mock(ImageTextExtractionService::class);
+        $fake->shouldReceive('extractText')->once()->andReturn('');
+        $this->app->instance(ImageTextExtractionService::class, $fake);
+
+        $response = $this->postJson('/api/news/manual/detect', [
+            'image' => UploadedFile::fake()->image('screenshot.png'),
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error', 'ocr_empty');
     }
 
     public function test_can_list_items_for_a_ticker(): void

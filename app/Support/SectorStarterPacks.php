@@ -111,4 +111,12 @@ class SectorStarterPacks
     {
         return self::PACKS[$sector] ?? [];
     }
+
+    // Flattened across every sector — used by TickerDetectionService as a fallback name/ticker
+    // dictionary for IDX stocks the user hasn't watchlisted yet.
+    /** @return array<int, array{ticker: string, name: string}> */
+    public static function all(): array
+    {
+        return array_merge(...array_values(self::PACKS));
+    }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ManualNewsItem, Market } from '@/types';
+import type { ManualNewsItem, Market, TickerCandidate } from '@/types';
 import Panel from './Panel';
 import { NewsIcon, CloseIcon } from '@/Components/Icons';
 import * as api from '@/lib/api';
@@ -18,58 +18,106 @@ function sentimentLabel(score: number): { text: string; className: string } {
     return { text: 'sangat negatif', className: 'text-rose-400' };
 }
 
+function candidateLabel(c: TickerCandidate): string {
+    return c.name ? `${c.ticker} — ${c.name}` : c.ticker;
+}
+
 export default function ManualNewsPanel({ defaultTicker, defaultMarket }: ManualNewsPanelProps) {
-    const [ticker, setTicker] = useState(defaultTicker ?? '');
-    const [market, setMarket] = useState<Market>(defaultMarket ?? 'idx');
+    // Only used to *view* news already tagged to the stock currently on screen — the upload flow
+    // below no longer needs a ticker up front, this app finds it from the news text itself.
+    const [viewTicker, setViewTicker] = useState(defaultTicker ?? '');
+    const [viewMarket, setViewMarket] = useState<Market>(defaultMarket ?? 'idx');
+    const [items, setItems] = useState<ManualNewsItem[]>([]);
+
     const [text, setText] = useState('');
     const [image, setImage] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [items, setItems] = useState<ManualNewsItem[]>([]);
+
+    // Set once detection runs: null candidates = detection hasn't run yet for the current draft;
+    // an array (possibly empty) means it ran and is waiting on the user (ambiguous) or on manual
+    // entry (nothing recognized) before it can be saved.
+    const [detectedText, setDetectedText] = useState<string | null>(null);
+    const [candidates, setCandidates] = useState<TickerCandidate[] | null>(null);
+    const [manualOverride, setManualOverride] = useState(false);
+    const [manualTicker, setManualTicker] = useState('');
+    const [manualMarket, setManualMarket] = useState<Market>('idx');
+    const [lastAdded, setLastAdded] = useState<TickerCandidate | null>(null);
 
     useEffect(() => {
-        if (defaultTicker) setTicker(defaultTicker);
-        if (defaultMarket) setMarket(defaultMarket);
+        if (defaultTicker) setViewTicker(defaultTicker);
+        if (defaultMarket) setViewMarket(defaultMarket);
     }, [defaultTicker, defaultMarket]);
 
     useEffect(() => {
-        if (!ticker) {
+        if (!viewTicker) {
             setItems([]);
             return;
         }
-        api.fetchManualNews(ticker.toUpperCase(), market)
+        api.fetchManualNews(viewTicker.toUpperCase(), viewMarket)
             .then(setItems)
             .catch(() => setItems([]));
-    }, [ticker, market]);
+    }, [viewTicker, viewMarket]);
 
-    async function handleSubmit(e: React.FormEvent) {
+    function resetDraft() {
+        setText('');
+        setImage(null);
+        setDetectedText(null);
+        setCandidates(null);
+        setManualOverride(false);
+        setManualTicker('');
+    }
+
+    async function handleAnalyze(e: React.FormEvent) {
         e.preventDefault();
-        if (!ticker.trim()) {
-            setError('Isi ticker dulu, mis. BBCA.');
-            return;
-        }
+        setError(null);
+        setLastAdded(null);
         if (!image && !text.trim()) {
             setError('Ketik teks berita atau upload screenshot dulu.');
             return;
         }
 
         setSubmitting(true);
-        setError(null);
         try {
-            if (image) {
-                await api.submitManualNewsImage(ticker.toUpperCase(), market, image);
+            const result = image ? await api.detectManualNewsImage(image) : await api.detectManualNewsText(text.trim());
+            setDetectedText(result.text);
+            if (result.candidates.length === 1) {
+                await finalize(result.candidates[0], result.text);
             } else {
-                await api.submitManualNewsText(ticker.toUpperCase(), market, text.trim());
+                setCandidates(result.candidates);
             }
-            setText('');
-            setImage(null);
-            const refreshed = await api.fetchManualNews(ticker.toUpperCase(), market);
-            setItems(refreshed);
         } catch (err) {
-            setError(err instanceof ApiRequestError ? err.message : 'Gagal mengirim berita.');
+            setError(err instanceof ApiRequestError ? err.message : 'Gagal menganalisis berita.');
         } finally {
             setSubmitting(false);
         }
+    }
+
+    async function finalize(candidate: TickerCandidate, resolvedText: string) {
+        setSubmitting(true);
+        setError(null);
+        try {
+            await api.submitManualNewsText(candidate.ticker, candidate.market, resolvedText);
+            setLastAdded(candidate);
+            resetDraft();
+            if (candidate.ticker === viewTicker.toUpperCase() && candidate.market === viewMarket) {
+                const refreshed = await api.fetchManualNews(viewTicker.toUpperCase(), viewMarket);
+                setItems(refreshed);
+            }
+        } catch (err) {
+            setError(err instanceof ApiRequestError ? err.message : 'Gagal menyimpan berita.');
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function handleManualSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        if (!manualTicker.trim() || detectedText === null) {
+            setError('Isi ticker dulu, mis. BBCA.');
+            return;
+        }
+        await finalize({ ticker: manualTicker.trim().toUpperCase(), market: manualMarket, name: null }, detectedText);
     }
 
     async function handleRemove(id: number) {
@@ -77,26 +125,112 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
         setItems((prev) => prev.filter((i) => i.id !== id));
     }
 
+    const awaitingResolution = candidates !== null && !lastAdded;
+
     return (
         <Panel title="Input Berita Manual" icon={<NewsIcon className="h-4 w-4 text-sky-300" />}>
             <p className="mb-3 text-xs text-slate-500">
                 Ada berita yang tidak ke-detect otomatis (misal dari Stockbit atau aplikasi lain)?
-                Ketik atau upload screenshot-nya — dianalisis pakai kamus sentimen yang sama dengan
-                berita otomatis, lalu ikut memengaruhi sub-skor berita saham ini selama 14 hari ke
-                depan.
+                Ketik atau upload screenshot-nya — <strong>tidak perlu pilih ticker dulu</strong>,
+                aplikasi ini yang mencari saham mana yang dimaksud dari isi beritanya, dicocokkan ke
+                watchlist/daftar saham yang sudah dikenal. Sentimennya dianalisis pakai kamus yang
+                sama dengan berita otomatis, lalu ikut memengaruhi sub-skor berita saham terkait
+                selama 14 hari ke depan.
             </p>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-                <div className="flex gap-2">
+
+            {!awaitingResolution && (
+                <form onSubmit={handleAnalyze} className="flex flex-col gap-2">
+                    <textarea
+                        value={text}
+                        onChange={(e) => {
+                            setText(e.target.value);
+                            if (e.target.value) setImage(null);
+                        }}
+                        placeholder="Ketik atau tempel teks berita di sini..."
+                        rows={3}
+                        className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500"
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                        <label className="cursor-pointer rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-slate-300 transition-colors hover:border-white/30">
+                            {image ? image.name : 'Upload screenshot'}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const f = e.target.files?.[0] ?? null;
+                                    setImage(f);
+                                    if (f) setText('');
+                                }}
+                            />
+                        </label>
+                        {image && (
+                            <button
+                                type="button"
+                                onClick={() => setImage(null)}
+                                className="text-xs text-slate-500 hover:text-slate-300"
+                            >
+                                Batal
+                            </button>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            className="ml-auto rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-sm font-medium text-sky-300 transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                        >
+                            {submitting ? 'Menganalisis...' : 'Analisis'}
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {awaitingResolution && candidates!.length > 1 && (
+                <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3">
+                    <p className="text-xs text-slate-400">
+                        Berita ini sepertinya menyebut beberapa saham. Ini tentang saham yang mana?
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {candidates!.map((c) => (
+                            <button
+                                key={`${c.market}:${c.ticker}`}
+                                type="button"
+                                disabled={submitting}
+                                onClick={() => finalize(c, detectedText!)}
+                                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-slate-200 transition-colors hover:border-sky-400/40 hover:text-sky-300 disabled:opacity-50"
+                            >
+                                {candidateLabel(c)}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setManualOverride((v) => !v)}
+                        className="self-start text-xs text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
+                    >
+                        Bukan saham yang dimaksud? Pilih manual
+                    </button>
+                </div>
+            )}
+
+            {awaitingResolution && candidates!.length === 0 && (
+                <p className="rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+                    Tidak ada saham yang ke-detect otomatis dari teks ini (belum ada di watchlist/daftar
+                    saham yang dikenal). Pilih ticker-nya manual di bawah.
+                </p>
+            )}
+
+            {awaitingResolution && (candidates!.length === 0 || manualOverride) && (
+                <form onSubmit={handleManualSubmit} className="mt-2 flex gap-2">
                     <input
                         type="text"
-                        value={ticker}
-                        onChange={(e) => setTicker(e.target.value.toUpperCase())}
+                        value={manualTicker}
+                        onChange={(e) => setManualTicker(e.target.value.toUpperCase())}
                         placeholder="Ticker, mis. BBCA"
                         className="w-32 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500"
                     />
                     <select
-                        value={market}
-                        onChange={(e) => setMarket(e.target.value as Market)}
+                        value={manualMarket}
+                        onChange={(e) => setManualMarket(e.target.value as Market)}
                         className="rounded-xl border border-white/15 bg-white/5 px-2 py-2 text-sm text-slate-300"
                     >
                         <option value="idx" className="bg-slate-800 text-slate-200">
@@ -106,50 +240,33 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                             Global
                         </option>
                     </select>
-                </div>
-                <textarea
-                    value={text}
-                    onChange={(e) => {
-                        setText(e.target.value);
-                        if (e.target.value) setImage(null);
-                    }}
-                    placeholder="Ketik atau tempel teks berita di sini..."
-                    rows={3}
-                    className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500"
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                    <label className="cursor-pointer rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-slate-300 transition-colors hover:border-white/30">
-                        {image ? image.name : 'Upload screenshot'}
-                        <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                                const f = e.target.files?.[0] ?? null;
-                                setImage(f);
-                                if (f) setText('');
-                            }}
-                        />
-                    </label>
-                    {image && (
-                        <button
-                            type="button"
-                            onClick={() => setImage(null)}
-                            className="text-xs text-slate-500 hover:text-slate-300"
-                        >
-                            Batal
-                        </button>
-                    )}
                     <button
                         type="submit"
                         disabled={submitting}
-                        className="ml-auto rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-sm font-medium text-sky-300 transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                        className="rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-sm font-medium text-sky-300 disabled:opacity-50"
                     >
-                        {submitting ? 'Menganalisis...' : 'Analisis'}
+                        Simpan
                     </button>
-                </div>
-                {error && <p className="text-xs text-rose-400">{error}</p>}
-            </form>
+                </form>
+            )}
+
+            {awaitingResolution && (
+                <button
+                    type="button"
+                    onClick={resetDraft}
+                    className="mt-2 text-xs text-slate-500 hover:text-slate-300"
+                >
+                    Batal, tulis ulang
+                </button>
+            )}
+
+            {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
+
+            {lastAdded && (
+                <p className="mt-2 text-xs text-emerald-400">
+                    Ditambahkan ke {candidateLabel(lastAdded)}.
+                </p>
+            )}
 
             {items.length > 0 && (
                 <ul className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-3">
