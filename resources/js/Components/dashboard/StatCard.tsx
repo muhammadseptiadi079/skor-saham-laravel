@@ -5,7 +5,7 @@ interface StatCardProps {
     value: number;
     icon: ReactNode;
     gradient?: string;
-    /** Tailwind shadow-color class (e.g. "shadow-slate-900/40") — tints the drop shadow to match the gradient. */
+    /** Tailwind shadow-color class (e.g. "shadow-black/40") — tints the drop shadow to match the gradient. */
     glow?: string;
     delayMs?: number;
     onClick?: () => void;
@@ -14,13 +14,14 @@ interface StatCardProps {
 // Always a <button> (a no-op one when onClick is omitted) — used as a shortcut into the relevant
 // tab, so keeping one element type avoids juggling two different prop shapes for div vs button.
 // Defaults to a uniform matte-black look (monochrome theme) — callers only pass gradient/glow to
-// deviate from that.
+// deviate from that. Uses neutral-800/black rather than slate (slate has a faint navy tint that
+// shows up on a surface this large — neutral reads as true black).
 export default function StatCard({
     label,
     value,
     icon,
-    gradient = 'from-slate-800 to-black',
-    glow = 'shadow-slate-900/40',
+    gradient = 'from-neutral-800 to-black',
+    glow = 'shadow-black/40',
     delayMs = 0,
     onClick,
 }: StatCardProps) {

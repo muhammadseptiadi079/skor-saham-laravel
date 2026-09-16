@@ -24,10 +24,10 @@ export default function TabNav({ tabs, active, onChange }: TabNavProps) {
                         key={tab.id}
                         type="button"
                         onClick={() => onChange(tab.id)}
-                        className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                        className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm transition-colors ${
                             active === tab.id
-                                ? 'border-slate-900 text-slate-900'
-                                : 'border-transparent text-slate-500 hover:text-slate-800'
+                                ? 'border-black font-bold text-black'
+                                : 'border-transparent font-medium text-slate-500 hover:text-slate-800'
                         }`}
                     >
                         {tab.icon}
@@ -45,8 +45,8 @@ export default function TabNav({ tabs, active, onChange }: TabNavProps) {
                         key={tab.id}
                         type="button"
                         onClick={() => onChange(tab.id)}
-                        className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
-                            active === tab.id ? 'text-slate-900' : 'text-slate-500'
+                        className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] transition-colors ${
+                            active === tab.id ? 'font-bold text-black' : 'font-medium text-slate-500'
                         }`}
                     >
                         {tab.icon}

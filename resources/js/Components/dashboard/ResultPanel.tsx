@@ -86,7 +86,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
         <GlassCard className="animate-fade-in-up p-5">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <h2 className="font-display text-xl font-bold tracking-tight text-slate-900">
+                    <h2 className="font-display text-xl font-bold tracking-tight text-black">
                         {result.name} <span className="text-slate-600">({result.ticker})</span>
                     </h2>
                     <p className="text-xs text-slate-500">Diperbarui: {when.toLocaleString('id-ID')}</p>
@@ -199,7 +199,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                     disabled={inWatchlist}
                     className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-transform hover:scale-105 active:scale-95 disabled:hover:scale-100 ${
                         inWatchlist
-                            ? 'border-slate-900 bg-slate-900 text-white'
+                            ? 'border-black bg-black text-white'
                             : 'border-slate-300 bg-slate-50 text-slate-800 hover:border-slate-400'
                     }`}
                 >

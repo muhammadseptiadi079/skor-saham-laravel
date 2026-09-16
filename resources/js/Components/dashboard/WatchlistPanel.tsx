@@ -47,14 +47,14 @@ export default function WatchlistPanel({
     return (
         <Panel
             title="Watchlist"
-            icon={<StarIcon className="h-4 w-4 text-slate-900" filled />}
+            icon={<StarIcon className="h-4 w-4 text-black" filled />}
             right={
                 <button
                     type="button"
                     onClick={() => setFavoritesOnly((v) => !v)}
                     className={`rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors ${
                         favoritesOnly
-                            ? 'border-slate-900 bg-slate-900 text-white'
+                            ? 'border-black bg-black text-white'
                             : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                     }`}
                     title="Tampilkan hanya saham yang ditandai favorit (sudah dibeli)"
@@ -109,7 +109,7 @@ export default function WatchlistPanel({
                                             type="button"
                                             onClick={() => onToggleFavorite(item.id, !item.is_favorite)}
                                             className={`shrink-0 rounded-full p-1 transition-colors hover:bg-slate-100 ${
-                                                item.is_favorite ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'
+                                                item.is_favorite ? 'text-black' : 'text-slate-500 hover:text-slate-700'
                                             }`}
                                             aria-label={
                                                 item.is_favorite

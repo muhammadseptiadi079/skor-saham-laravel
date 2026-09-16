@@ -6,9 +6,10 @@
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
-    /* Used for the wordmark, section headings, and big numbers — a bit more character than Inter
-       for the handful of spots that should feel "branded" rather than purely functional. */
-    --font-display: 'Plus Jakarta Sans', var(--font-sans);
+    /* Used for the wordmark, section headings, and big numbers — a firmer, more geometric grotesk
+       than Inter (true weights up to 900) for the handful of spots that should feel "branded" and
+       assertive rather than purely functional. */
+    --font-display: 'Archivo', var(--font-sans);
 
     /* Entrance / transition animations, used across the dashboard for a livelier feel. */
     --animate-fade-in-up: fadeInUp 0.6s ease-out both;
@@ -127,7 +128,7 @@
        (public/textures/hole-punch.svg) used as a mask. Solid fallback color first so browsers
        without mask-image support still show readable (just un-punched) text instead of nothing. */
     .text-holes {
-        color: #0f172a;
+        color: #0a0a0a;
     }
     @supports (mask-image: none) or (-webkit-mask-image: none) {
         .text-holes {

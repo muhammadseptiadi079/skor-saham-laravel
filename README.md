@@ -809,6 +809,32 @@ sampai 14 request berurutan untuk satu kali analisis.
   perubahan (Http::fake() di test tetap mencegat request meskipun sekarang
   dikirim lewat pool).
 
+## Round Kesembilan Belas: Font Lebih Tegas + Hitam yang Benar-Benar Hitam
+
+Permintaannya: huruf lebih tegas/jenis huruf beda, dan warna hitamnya
+dibenahi.
+
+- **Font `--font-display` diganti dari Plus Jakarta Sans ke Archivo** —
+  bentuk hurufnya lebih geometris/kokoh dan beratnya sampai 900 (Black),
+  dipakai di wordmark, judul nama saham di hasil analisis, dan angka besar
+  di kartu statistik. Plus Jakarta Sans maksimal cuma berat 800 dan
+  bentuknya lebih membulat/kalem — Archivo terasa lebih "tegas" sesuai
+  yang diminta.
+- **Wordmark naik dari `font-extrabold` (800) ke `font-black` (900)** —
+  berat maksimal yang tersedia, biar makin tebal.
+- **Warna "hitam" dibenahi jadi benar-benar netral** — sebelumnya beberapa
+  elemen "hitam" (wordmark, kartu statistik, tombol Analisis, tab aktif,
+  badge "Ada di watchlist", bintang favorit) sebenarnya pakai
+  `slate-800`/`slate-900` yang punya sedikit semburat biru (nilai hex-nya
+  `#0f172a`, bukan abu-abu/hitam netral) — kentara di area besar seperti
+  kartu statistik. Diganti ke `neutral-800`/`black`/`#0a0a0a` yang benar-
+  benar netral, tidak condong ke warna apa pun.
+- Judul panel (`Panel.tsx`) dinaikkan dari `font-semibold` ke `font-bold`
+  supaya konsisten lebih tegas, tapi tetap pakai Inter (bukan Archivo) dan
+  warna `slate-900` (bukan hitam penuh) — supaya hierarki visualnya tetap
+  jelas: cuma elemen paling penting (wordmark, nama saham, aksi utama)
+  yang dapat hitam solid, bukan semua teks gelap sekaligus.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan

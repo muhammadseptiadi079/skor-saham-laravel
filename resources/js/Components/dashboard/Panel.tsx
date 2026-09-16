@@ -12,7 +12,7 @@ export default function Panel({ title, icon, right, children }: PanelProps) {
     return (
         <GlassCard className="animate-fade-in-up p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                <h2 className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
                     {icon}
                     {title}
                 </h2>

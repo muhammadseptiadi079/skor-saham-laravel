@@ -29,7 +29,7 @@ export default function AppLayout({ online, children, tabs, activeTab, onTabChan
 
             <div className="relative mx-auto flex min-h-screen max-w-3xl flex-col px-4 pb-24 sm:px-6 sm:pb-16">
                 <header className="sticky top-0 z-10 -mx-4 mb-4 flex items-center justify-between border-b border-slate-200 bg-slate-50/85 px-4 py-4 backdrop-blur-lg sm:-mx-6 sm:mb-0 sm:px-6">
-                    <h1 className="text-holes font-display text-3xl font-extrabold tracking-wide uppercase sm:text-4xl">
+                    <h1 className="text-holes font-display text-3xl font-black tracking-wide uppercase sm:text-4xl">
                         Skor Saham
                     </h1>
                     <span
