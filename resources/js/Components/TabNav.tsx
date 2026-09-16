@@ -26,7 +26,7 @@ export default function TabNav({ tabs, active, onChange }: TabNavProps) {
                         onClick={() => onChange(tab.id)}
                         className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
                             active === tab.id
-                                ? 'border-cyan-600 text-cyan-700'
+                                ? 'border-slate-900 text-slate-900'
                                 : 'border-transparent text-slate-500 hover:text-slate-800'
                         }`}
                     >
@@ -46,7 +46,7 @@ export default function TabNav({ tabs, active, onChange }: TabNavProps) {
                         type="button"
                         onClick={() => onChange(tab.id)}
                         className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
-                            active === tab.id ? 'text-cyan-700' : 'text-slate-500'
+                            active === tab.id ? 'text-slate-900' : 'text-slate-500'
                         }`}
                     >
                         {tab.icon}

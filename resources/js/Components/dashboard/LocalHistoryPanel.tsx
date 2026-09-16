@@ -9,7 +9,7 @@ interface LocalHistoryPanelProps {
 
 export default function LocalHistoryPanel({ items, onSelect }: LocalHistoryPanelProps) {
     return (
-        <Panel title="Riwayat (tersimpan di HP)" icon={<ClockIcon className="h-4 w-4 text-violet-700" />}>
+        <Panel title="Riwayat (tersimpan di HP)" icon={<ClockIcon className="h-4 w-4 text-slate-700" />}>
             {items.length === 0 ? (
                 <p className="text-sm text-slate-500">Belum ada riwayat tersimpan di perangkat ini.</p>
             ) : (

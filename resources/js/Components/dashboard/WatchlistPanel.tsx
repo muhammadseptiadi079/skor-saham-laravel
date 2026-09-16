@@ -47,14 +47,14 @@ export default function WatchlistPanel({
     return (
         <Panel
             title="Watchlist"
-            icon={<StarIcon className="h-4 w-4 text-amber-700" filled />}
+            icon={<StarIcon className="h-4 w-4 text-slate-900" filled />}
             right={
                 <button
                     type="button"
                     onClick={() => setFavoritesOnly((v) => !v)}
                     className={`rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors ${
                         favoritesOnly
-                            ? 'border-amber-300 bg-amber-50 text-amber-700'
+                            ? 'border-slate-900 bg-slate-900 text-white'
                             : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                     }`}
                     title="Tampilkan hanya saham yang ditandai favorit (sudah dibeli)"
@@ -80,7 +80,7 @@ export default function WatchlistPanel({
                     type="button"
                     onClick={() => onAddStarterPack(starterSector)}
                     disabled={addingStarterPack}
-                    className="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 transition-colors hover:border-sky-400 disabled:opacity-50"
+                    className="rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-800 transition-colors hover:border-slate-500 disabled:opacity-50"
                     title="Tambahkan sekumpulan saham IDX terkenal di sektor ini ke watchlist"
                 >
                     {addingStarterPack ? 'Menambahkan...' : '+ Tambah starter pack'}
@@ -109,7 +109,7 @@ export default function WatchlistPanel({
                                             type="button"
                                             onClick={() => onToggleFavorite(item.id, !item.is_favorite)}
                                             className={`shrink-0 rounded-full p-1 transition-colors hover:bg-slate-100 ${
-                                                item.is_favorite ? 'text-amber-700' : 'text-slate-500 hover:text-slate-700'
+                                                item.is_favorite ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'
                                             }`}
                                             aria-label={
                                                 item.is_favorite

@@ -23,7 +23,7 @@ export default function SearchForm({ onSubmit, submitting }: SearchFormProps) {
             <select
                 value={market}
                 onChange={(e) => setMarket(e.target.value as Market)}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 backdrop-blur-xl focus:border-cyan-400 focus:outline-none"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 backdrop-blur-xl focus:border-slate-500 focus:outline-none"
             >
                 <option value="idx" className="bg-white">
                     IDX (Indonesia)
@@ -38,12 +38,12 @@ export default function SearchForm({ onSubmit, submitting }: SearchFormProps) {
                 type="text"
                 placeholder="Contoh: BBCA atau AAPL"
                 autoComplete="off"
-                className="min-w-36 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder-slate-500 backdrop-blur-xl focus:border-cyan-400 focus:outline-none"
+                className="min-w-36 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder-slate-500 backdrop-blur-xl focus:border-slate-500 focus:outline-none"
             />
             <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition-transform hover:scale-105 active:scale-95 disabled:opacity-60 disabled:hover:scale-100"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-slate-800 to-black px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/30 transition-transform hover:scale-105 active:scale-95 disabled:opacity-60 disabled:hover:scale-100"
             >
                 <SearchIcon className="h-4 w-4" />
                 {submitting ? 'Menganalisis...' : 'Analisis'}

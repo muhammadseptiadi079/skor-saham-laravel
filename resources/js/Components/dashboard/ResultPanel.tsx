@@ -199,7 +199,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                     disabled={inWatchlist}
                     className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-transform hover:scale-105 active:scale-95 disabled:hover:scale-100 ${
                         inWatchlist
-                            ? 'border-amber-300 bg-amber-50 text-amber-700'
+                            ? 'border-slate-900 bg-slate-900 text-white'
                             : 'border-slate-300 bg-slate-50 text-slate-800 hover:border-slate-400'
                     }`}
                 >
@@ -243,7 +243,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                                             href={a.url}
                                             target="_blank"
                                             rel="noopener"
-                                            className="text-sky-700 hover:text-sky-700 hover:underline"
+                                            className="text-slate-700 hover:text-slate-900 hover:underline"
                                         >
                                             {a.title}
                                         </a>

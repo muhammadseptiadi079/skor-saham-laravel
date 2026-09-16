@@ -127,7 +127,7 @@ function HoldingRow({
 export default function PortfolioPanel({ favorites, portfolio, onUpdateHolding }: PortfolioPanelProps) {
     if (favorites.length === 0) {
         return (
-            <Panel title="Portfolio" icon={<BriefcaseIcon className="h-4 w-4 text-amber-700" />}>
+            <Panel title="Portfolio" icon={<BriefcaseIcon className="h-4 w-4 text-slate-700" />}>
                 <p className="text-sm text-slate-500">
                     Belum ada saham favorit (yang sudah dibeli). Tandai bintang di panel Watchlist
                     dulu, lalu isi jumlah lembar & harga beli di sini.
@@ -137,7 +137,7 @@ export default function PortfolioPanel({ favorites, portfolio, onUpdateHolding }
     }
 
     return (
-        <Panel title="Portfolio" icon={<BriefcaseIcon className="h-4 w-4 text-amber-700" />}>
+        <Panel title="Portfolio" icon={<BriefcaseIcon className="h-4 w-4 text-slate-700" />}>
             <p className="mb-3 text-xs text-slate-500">
                 Isi jumlah lembar & harga beli rata-rata tiap saham favorit untuk lihat untung/rugi
                 belum terealisasi. Harga sekarang diambil dari cache analisis terakhir (bukan harga

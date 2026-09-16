@@ -16,7 +16,7 @@ export default function ScreenerPanel({ market, onMarketChange, response, onSele
     return (
         <Panel
             title="Potensi Naik (Screener)"
-            icon={<ChartUpIcon className="h-4 w-4 text-emerald-700" />}
+            icon={<ChartUpIcon className="h-4 w-4 text-slate-700" />}
             right={
                 <select
                     value={market}

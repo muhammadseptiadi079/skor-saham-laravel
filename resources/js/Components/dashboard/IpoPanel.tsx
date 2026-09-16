@@ -11,7 +11,7 @@ function formatIpoDate(date: string | null): string {
 
 export default function IpoPanel({ items }: { items: IpoListing[] }) {
     return (
-        <Panel title="IPO Terbaru" icon={<BriefcaseIcon className="h-4 w-4 text-orange-600" />}>
+        <Panel title="IPO Terbaru" icon={<BriefcaseIcon className="h-4 w-4 text-slate-700" />}>
             {items.length === 0 ? (
                 <p className="text-sm text-slate-500">
                     Belum ada data IPO. Jalankan{' '}

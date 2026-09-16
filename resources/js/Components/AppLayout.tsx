@@ -16,13 +16,13 @@ export default function AppLayout({ online, children, tabs, activeTab, onTabChan
             {/* Faint decorative washes, sit behind the cards — much softer than a dark theme's glow
                 blobs would be, since a light page needs a quiet background for data to stand out. */}
             <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-                <div className="animate-blob-float absolute -top-24 -left-20 h-80 w-80 rounded-full bg-cyan-300/25 blur-3xl" />
+                <div className="animate-blob-float absolute -top-24 -left-20 h-80 w-80 rounded-full bg-slate-400/15 blur-3xl" />
                 <div
-                    className="animate-blob-float absolute top-1/3 -right-24 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl"
+                    className="animate-blob-float absolute top-1/3 -right-24 h-96 w-96 rounded-full bg-slate-500/10 blur-3xl"
                     style={{ animationDelay: '4s' }}
                 />
                 <div
-                    className="animate-blob-float absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-emerald-300/15 blur-3xl"
+                    className="animate-blob-float absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-slate-300/15 blur-3xl"
                     style={{ animationDelay: '9s' }}
                 />
             </div>
@@ -30,14 +30,11 @@ export default function AppLayout({ online, children, tabs, activeTab, onTabChan
             <div className="relative mx-auto flex min-h-screen max-w-3xl flex-col px-4 pb-24 sm:px-6 sm:pb-16">
                 <header className="sticky top-0 z-10 -mx-4 mb-4 flex items-center justify-between border-b border-slate-200 bg-slate-50/85 px-4 py-4 backdrop-blur-lg sm:-mx-6 sm:mb-0 sm:px-6">
                     <h1 className="flex items-center gap-2.5">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-violet-600 font-display text-base font-extrabold text-white shadow-sm shadow-violet-900/30 ring-1 ring-white/25">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-black font-display text-base font-extrabold text-white shadow-sm shadow-slate-900/40 ring-1 ring-white/15">
                             S
                         </span>
                         <span className="font-display text-xl font-extrabold tracking-tight text-slate-900">
-                            Skor{' '}
-                            <span className="bg-gradient-to-r from-cyan-600 to-violet-600 bg-clip-text text-transparent">
-                                Saham
-                            </span>
+                            <span className="font-semibold text-slate-500">Skor</span> Saham
                         </span>
                     </h1>
                     <span

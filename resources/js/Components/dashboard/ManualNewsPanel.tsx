@@ -128,7 +128,7 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
     const awaitingResolution = candidates !== null && !lastAdded;
 
     return (
-        <Panel title="Input Berita Manual" icon={<NewsIcon className="h-4 w-4 text-sky-700" />}>
+        <Panel title="Input Berita Manual" icon={<NewsIcon className="h-4 w-4 text-slate-700" />}>
             <p className="mb-3 text-xs text-slate-500">
                 Ada berita yang tidak ke-detect otomatis (misal dari Stockbit atau aplikasi lain)?
                 Ketik atau upload screenshot-nya — <strong>tidak perlu pilih ticker dulu</strong>,
@@ -176,7 +176,7 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="ml-auto rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                            className="ml-auto rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800 transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                         >
                             {submitting ? 'Menganalisis...' : 'Analisis'}
                         </button>
@@ -196,7 +196,7 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                                 type="button"
                                 disabled={submitting}
                                 onClick={() => finalize(c, detectedText!)}
-                                className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 transition-colors hover:border-sky-300 hover:text-sky-700 disabled:opacity-50"
+                                className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 transition-colors hover:border-slate-500 hover:text-slate-900 disabled:opacity-50"
                             >
                                 {candidateLabel(c)}
                             </button>
@@ -243,7 +243,7 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                     <button
                         type="submit"
                         disabled={submitting}
-                        className="rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 disabled:opacity-50"
+                        className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800 disabled:opacity-50"
                     >
                         Simpan
                     </button>

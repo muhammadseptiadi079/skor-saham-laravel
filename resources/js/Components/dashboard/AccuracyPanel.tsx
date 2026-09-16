@@ -38,7 +38,7 @@ function CalibrationNote({ calibration }: { calibration: ConfidenceCalibration }
 export default function AccuracyPanel({ data }: { data: AccuracyResponse | null }) {
     if (!data) {
         return (
-            <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-sky-700" />}>
+            <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-slate-700" />}>
                 <p className="text-sm text-slate-500">Memuat data akurasi...</p>
             </Panel>
         );
@@ -46,7 +46,7 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
 
     if (data.sampleSize === 0) {
         return (
-            <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-sky-700" />}>
+            <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-slate-700" />}>
                 <p className="text-sm text-slate-500">
                     Belum ada data yang cukup umur untuk dievaluasi. Skor "trading" baru dinilai
                     setelah ~1 bulan (lewat <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">php artisan stocks:evaluate-backtest</code>),
@@ -60,7 +60,7 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
     const subScoreRows = data.subScoreAccuracy.filter((row) => row.sampleSize > 0);
 
     return (
-        <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-sky-700" />}>
+        <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-slate-700" />}>
             <p className="mb-3 text-xs text-slate-500">
                 Persentase label "trading" yang arah prediksinya benar ~20 hari perdagangan
                 kemudian — dihitung dari riwayat analisis, bukan klaim di muka.

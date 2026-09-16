@@ -720,6 +720,32 @@ tidak memblokir render):
   tema lama sebelum konversi ke tema terang, sekarang `#f8fafc` supaya warna
   status bar browser di HP tidak kontras aneh dengan tampilan terang.
 
+## Round Keenam Belas: Tema Hitam-Putih (Monokrom)
+
+Semua warna aksen dekoratif (cyan, violet, sky, biru, fuchsia, teal — dipakai
+di wordmark, kartu statistik, tombol, tab aktif, ikon panel) diganti jadi
+abu-abu/hitam. Ini bukan cuma soal warna: sebelumnya ada 4+ warna berbeda
+yang bersaing untuk perhatian (kartu biru, hijau, ungu, oranye sekaligus di
+layar yang sama) — versi monokrom ini sengaja dibuat lebih "diam" secara
+visual, ala produk premium (kartu hitam matte, wordmark hitam solid) yang
+menahan diri dari warna supaya kesannya elegan bukan ramai.
+
+- **Yang diganti ke hitam/abu-abu**: wordmark + logomark header, 4 kartu
+  statistik (sekarang seragam gradasi `slate-800→black`, dibedakan cuma
+  lewat ikon & label karena warnanya sudah sama), tombol utama (Analisis,
+  Simpan, Tambah starter pack, dll), tab aktif di navigasi, ikon judul tiap
+  panel, bintang favorit di watchlist, badge "Ada di watchlist", dan blob
+  dekoratif di background.
+- **Yang SENGAJA tidak diubah**: warna hijau/kuning/merah yang menandakan
+  skor atau arah pergerakan (gauge Beli/Jual, bar sub-skor, persen naik/
+  turun, label keyakinan Tinggi/Sedang/Rendah, badge peringatan data
+  kurang/likuiditas rendah). Warna-warna itu bukan dekorasi — itu satu-
+  satunya cara cepat membaca "bagus atau tidak" tanpa baca angka satu per
+  satu, jadi kalau ikut dihitamkan, justru bikin aplikasi lebih susah
+  dipakai, bukan lebih premium. `StatCard` sekarang punya default
+  `gradient`/`glow` monokrom, tapi propnya tetap bisa di-override kalau di
+  kemudian hari perlu warna lagi di tempat tertentu.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
