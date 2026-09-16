@@ -835,6 +835,24 @@ dibenahi.
   jelas: cuma elemen paling penting (wordmark, nama saham, aksi utama)
   yang dapat hitam solid, bukan semua teks gelap sekaligus.
 
+## Round Kedua Puluh: Ganti Gauge Jarum Jadi Bar Horizontal
+
+Indikator skor "Jangka Panjang"/"Trading" sebelumnya berbentuk speedometer
+dengan jarum (`ScoreGauge`) — dicek dulu apakah jarumnya salah hitung
+(dites untuk beberapa nilai skor, semuanya jatuh di zona warna yang benar,
+jadi bukan bug), tapi bentuk speedometer-nya sendiri dianggap terlihat
+jadul untuk tema monokrom yang tegas sekarang.
+
+- **`ScoreGauge` (jarum) dihapus, diganti `ScoreBar`** — track horizontal
+  bergradasi warna (merah tua → merah → kuning → hijau → hijau tua, sama
+  persis dengan zona lama) dengan penanda hitam di posisi skornya, bukan
+  jarum berputar.
+- Dipilih bar horizontal (bukan cincin/ring melingkar) karena bentuknya
+  konsisten dengan `SubScoreBarChart` yang sudah ada di bagian bawah hasil
+  analisis — jadi cuma satu gaya chart di seluruh halaman, bukan dua gaya
+  berbeda yang bersaing.
+- Preview-nya dicek dulu lewat screenshot sebelum dipasang permanen.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan

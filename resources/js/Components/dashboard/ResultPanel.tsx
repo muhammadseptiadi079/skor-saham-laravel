@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { AccuracyResponse, AnalysisResult, HistoryEntry } from '@/types';
 import { SECTORS, DEFAULT_SECTOR } from '@/lib/sectors';
 import GlassCard from '@/Components/GlassCard';
-import ScoreGauge from '@/Components/charts/ScoreGauge';
+import ScoreBar from '@/Components/charts/ScoreBar';
 import SubScoreBarChart from '@/Components/charts/SubScoreBarChart';
 import HistoryLineChart from '@/Components/charts/HistoryLineChart';
 import { StarIcon, NewsIcon, UsersIcon, GaugeIcon } from '@/Components/Icons';
@@ -117,7 +117,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
 
             <div className="mt-4 grid grid-cols-2 gap-3">
                 <GlassCard className="p-3">
-                    <ScoreGauge score={result.longterm.score} label={result.longterm.label} title="Jangka Panjang" />
+                    <ScoreBar score={result.longterm.score} label={result.longterm.label} title="Jangka Panjang" />
                     {result.longterm.confidence && (
                         <p
                             className={`mt-1 text-center text-[11px] font-medium ${confidenceColorClass(result.longterm.confidence)}`}
@@ -128,7 +128,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                     )}
                 </GlassCard>
                 <GlassCard className="p-3">
-                    <ScoreGauge score={result.trading.score} label={result.trading.label} title="Trading" />
+                    <ScoreBar score={result.trading.score} label={result.trading.label} title="Trading" />
                     {result.trading.confidence && (
                         <p
                             className={`mt-1 text-center text-[11px] font-medium ${confidenceColorClass(result.trading.confidence)}`}
