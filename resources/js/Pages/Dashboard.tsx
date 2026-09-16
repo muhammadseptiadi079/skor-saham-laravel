@@ -208,14 +208,16 @@ export default function Dashboard() {
                 <StatCard
                     label="Watchlist"
                     value={watchlist.length}
-                    gradient="from-cyan-500 to-blue-600"
+                    gradient="from-cyan-600 to-blue-800"
+                    glow="shadow-cyan-900/40"
                     icon={<StarIcon filled className="h-full w-full" />}
                     onClick={() => setActiveTab('watchlist')}
                 />
                 <StatCard
                     label="Potensi Naik"
                     value={screener?.items.length ?? 0}
-                    gradient="from-emerald-500 to-teal-600"
+                    gradient="from-emerald-600 to-teal-800"
+                    glow="shadow-emerald-900/40"
                     icon={<ChartUpIcon className="h-full w-full" />}
                     delayMs={60}
                     onClick={() => setActiveTab('screener')}
@@ -223,7 +225,8 @@ export default function Dashboard() {
                 <StatCard
                     label="Riwayat Tersimpan"
                     value={localHistory.length}
-                    gradient="from-violet-500 to-fuchsia-600"
+                    gradient="from-violet-600 to-fuchsia-800"
+                    glow="shadow-violet-900/40"
                     icon={<ClockIcon className="h-full w-full" />}
                     delayMs={120}
                     onClick={() => setActiveTab('analisis')}
@@ -231,7 +234,8 @@ export default function Dashboard() {
                 <StatCard
                     label="IPO Terbaru"
                     value={ipoListings.length}
-                    gradient="from-amber-500 to-orange-600"
+                    gradient="from-amber-600 to-orange-800"
+                    glow="shadow-amber-900/40"
                     icon={<BriefcaseIcon className="h-full w-full" />}
                     delayMs={180}
                     onClick={() => setActiveTab('screener')}

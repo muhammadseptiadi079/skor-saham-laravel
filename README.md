@@ -678,6 +678,23 @@ dipaksakan sama di HP dan laptop:
   tab Analisis supaya hasilnya langsung kelihatan, tidak peduli dari
   tab mana aksinya dipicu.
 
+## Round Keempat Belas: Kartu Statistik Lebih "Mewah"
+
+4 kartu warna-warni di atas dashboard (Watchlist, Potensi Naik, Riwayat
+Tersimpan, IPO Terbaru) di-refresh tampilannya — murni kosmetik, tidak
+ada perubahan data/logika:
+
+- **Gradient lebih dalam** — dari nada terang (`500→600`) jadi nada jewel-tone
+  yang lebih pekat (`600→800`), kesannya lebih premium dibanding sebelumnya
+  yang agak pastel.
+- **Shadow berwarna sesuai gradiennya** (`shadow-cyan-900/40` dst.) alih-alih
+  shadow abu-abu generik, jadi tiap kartu punya "glow" lembut yang senada.
+- **Ring tipis putih transparan** (`ring-1 ring-white/15`) di tepi kartu +
+  lapisan sheen diagonal (`from-white/20` ke `to-black/10`) supaya
+  permukaannya tidak flat, mirip tekstur kaca/kartu fisik.
+- Prop baru `glow` di `StatCard` (opsional, ada default abu-abu netral)
+  supaya pemakaian di tempat lain tidak wajib ikut berubah kalau ada.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
