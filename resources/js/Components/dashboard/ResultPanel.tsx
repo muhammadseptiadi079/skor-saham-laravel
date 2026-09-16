@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { AnalysisResult, HistoryEntry } from '@/types';
+import type { AccuracyResponse, AnalysisResult, HistoryEntry } from '@/types';
 import { SECTORS, DEFAULT_SECTOR } from '@/lib/sectors';
 import GlassCard from '@/Components/GlassCard';
 import ScoreGauge from '@/Components/charts/ScoreGauge';
@@ -21,12 +21,36 @@ function confidenceColorClass(level: string): string {
     return 'text-rose-400';
 }
 
+function money(v: number, currency: string): string {
+    const isIdr = currency === 'IDR';
+    const symbol = isIdr ? 'Rp' : '$';
+
+    return `${symbol}${v.toLocaleString('id-ID', { maximumFractionDigits: isIdr ? 0 : 2 })}`;
+}
+
+// upsidePct arrives as a fraction (0.3 = 30%); avgForwardReturnPct from /api/accuracy arrives
+// already multiplied by 100 — callers pass whichever unit matches.
+function pctFraction(v: number): string {
+    const p = v * 100;
+
+    return `${p >= 0 ? '+' : ''}${p.toFixed(1)}%`;
+}
+
+function pctValue(v: number): string {
+    return `${v >= 0 ? '+' : ''}${v}%`;
+}
+
+function movementColorClass(v: number): string {
+    return v >= 0 ? 'text-emerald-400' : 'text-rose-400';
+}
+
 interface ResultPanelProps {
     result: AnalysisResult;
     savedAt: number | null;
     inWatchlist: boolean;
     onAddWatchlist: (sector: string) => void;
     trendEntries: HistoryEntry[];
+    accuracy: AccuracyResponse | null;
 }
 
 function NoteList({ notes, delayBase = 0 }: { notes: string[]; delayBase?: number }) {
@@ -46,10 +70,17 @@ function NoteList({ notes, delayBase = 0 }: { notes: string[]; delayBase?: numbe
     );
 }
 
-export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchlist, trendEntries }: ResultPanelProps) {
+// Below this many graded samples, an average forward return is too likely to be noise to show
+// next to a specific stock's result — same conservative threshold philosophy as the other
+// backtest-derived reports (see SubScoreAccuracyService on the backend).
+const MIN_SAMPLE_FOR_HISTORICAL_NOTE = 10;
+
+export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchlist, trendEntries, accuracy }: ResultPanelProps) {
     const [sector, setSector] = useState<string>(DEFAULT_SECTOR);
     const when = new Date(savedAt || result.generatedAt);
     const isBearish = (result.trading.score ?? 0) <= -0.5 || (result.longterm.score ?? 0) <= -0.5;
+    const historicalReturn =
+        accuracy?.byLabel.find((row) => row.label === result.trading.label && row.sampleSize >= MIN_SAMPLE_FOR_HISTORICAL_NOTE) ?? null;
 
     return (
         <GlassCard className="animate-fade-in-up p-5">
@@ -112,6 +143,38 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
             {result.horizonAlignment.aligned === false && result.horizonAlignment.note && (
                 <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
                     {result.horizonAlignment.note}
+                </div>
+            )}
+
+            {(result.priceTarget || historicalReturn) && (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {result.priceTarget && (
+                        <GlassCard className="p-3.5">
+                            <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">Target Analis</p>
+                            <p className={`mt-1 text-2xl font-bold ${movementColorClass(result.priceTarget.upsidePct)}`}>
+                                {pctFraction(result.priceTarget.upsidePct)}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                                Konsensus target harga analis {money(result.priceTarget.targetPrice, result.currency)} dari harga
+                                sekarang — data eksternal, bukan prediksi aplikasi ini.
+                            </p>
+                        </GlassCard>
+                    )}
+                    {historicalReturn && (
+                        <GlassCard className="p-3.5">
+                            <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
+                                Riwayat Label &quot;{historicalReturn.label}&quot;
+                            </p>
+                            <p className={`mt-1 text-2xl font-bold ${movementColorClass(historicalReturn.avgForwardReturnPct)}`}>
+                                {pctValue(historicalReturn.avgForwardReturnPct)}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                                Rata-rata pergerakan historis semua saham berlabel ini dalam ~20 hari perdagangan (dari{' '}
+                                {historicalReturn.sampleSize} sampel, akurasi arah {historicalReturn.accuracy}%) — bukan prediksi
+                                untuk saham ini secara spesifik.
+                            </p>
+                        </GlassCard>
+                    )}
                 </div>
             )}
 

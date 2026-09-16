@@ -226,6 +226,7 @@ export default function Dashboard() {
                         inWatchlist={inWatchlist}
                         onAddWatchlist={handleAddWatchlist}
                         trendEntries={resultTrend}
+                        accuracy={accuracy}
                     />
                 )}
 

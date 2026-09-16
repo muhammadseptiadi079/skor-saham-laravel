@@ -592,6 +592,39 @@ persis pola yang sama dengan "Saran Evaluasi Bobot" di Round Kedelapan:
   sekecil ini (khususnya untuk aplikasi personal yang datanya lambat
   terkumpul) terlalu berisiko untuk auto-tuning ambang batas.
 
+## Round Kesebelas: Estimasi Potensi Pergerakan, Ditaruh di Posisi yang Kelihatan
+
+User minta angka "potensi naik berapa persen" yang gampang dilihat.
+Godaan paling gampang adalah bikin satu angka tunggal seakan-akan itu
+prediksi harga saham ini — tapi itu melanggar prinsip dasar aplikasi ini
+sejak awal (`ScoringEngine` selalu bilang eksplisit: bukan prediksi
+yang terjamin akurat, pasar keuangan tidak bisa diprediksi secara
+andal). Solusinya bukan bikin angka baru, tapi **mengangkat dua angka
+yang sudah dihitung aplikasi ini tapi sebelumnya terkubur di dalam teks
+catatan**, ditaruh sebagai kotak besar tepat di bawah gauge skor:
+
+- **Target Analis** (`priceTarget` di respons `/api/analyze`,
+  `ScoringEngine::scoreFundamentals`) — sebelumnya cuma muncul sebagai
+  kalimat di dalam daftar catatan Fundamental ("Target harga analis
+  Rp10.500..."), sekarang juga dikembalikan sebagai angka terstruktur
+  (`targetPrice`, `upsidePct`) supaya frontend bisa menampilkannya besar
+  dan jelas. **Ini bukan aplikasi ini yang memprediksi** — ini konsensus
+  target harga dari analis sungguhan (data eksternal dari Yahoo
+  Finance/Alpha Vantage), aplikasi cuma menghitung selisihnya dari harga
+  sekarang.
+- **Riwayat Label** (dihitung di frontend dari `/api/accuracy`'s
+  `byLabel`, tidak butuh endpoint baru) — begitu label trading saham
+  yang lagi dianalisis (misal "Buy") sudah punya ≥10 sampel backtest,
+  muncul kotak kedua: rata-rata pergerakan historis **semua** saham yang
+  pernah dapat label itu, dalam ~20 hari perdagangan. **Sengaja dilabeli
+  jelas sebagai riwayat gabungan, bukan prediksi untuk saham yang lagi
+  dilihat** — beda dari target analis di atas yang memang spesifik ke
+  saham tersebut.
+- Kedua kotak cuma muncul kalau datanya benar-benar ada (tidak ada
+  angka dipaksakan saat data belum cukup) — konsisten dengan pola
+  "diam kalau tidak ada yang bisa dikatakan dengan jujur" yang dipakai
+  di seluruh aplikasi ini.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
@@ -697,7 +730,7 @@ internet normal:
   meleset.
 
 Yang **sudah** diverifikasi jalan di sesi ini (tanpa perlu akses internet
-eksternal): migrasi database, seluruh 196 test PHPUnit, `npm run build`
+eksternal): migrasi database, seluruh 200 test PHPUnit, `npm run build`
 (Vite + TypeScript type-check bersih), dan server `php artisan serve` —
 halaman Inertia ter-render, bundle JS/CSS ter-load, semua endpoint
 `/api/*` (termasuk `/api/accuracy`) merespons normal.

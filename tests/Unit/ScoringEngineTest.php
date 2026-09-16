@@ -294,6 +294,32 @@ class ScoringEngineTest extends TestCase
         $this->assertLessThan(0, $result['subScores']['fundamentals']['score']);
     }
 
+    public function test_price_target_is_surfaced_at_the_top_level(): void
+    {
+        $series = [['close' => 100, 'volume' => 1000]];
+
+        $result = $this->engine->buildAnalysis(['analystTargetPrice' => 130], null, $series, null, 'USD');
+
+        $this->assertEquals(130, $result['priceTarget']['targetPrice']);
+        $this->assertEqualsWithDelta(0.3, $result['priceTarget']['upsidePct'], 0.0001);
+    }
+
+    public function test_price_target_is_null_when_no_analyst_target_available(): void
+    {
+        $series = [['close' => 100, 'volume' => 1000]];
+
+        $result = $this->engine->buildAnalysis(['peRatio' => 12], null, $series, null, 'USD');
+
+        $this->assertNull($result['priceTarget']);
+    }
+
+    public function test_price_target_is_null_when_fundamentals_unavailable(): void
+    {
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR');
+
+        $this->assertNull($result['priceTarget']);
+    }
+
     public function test_earnings_within_14_days_adds_a_risk_note(): void
     {
         $soon = date('Y-m-d', strtotime('+5 days'));

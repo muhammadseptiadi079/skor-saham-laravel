@@ -43,6 +43,11 @@ export interface HorizonAlignment {
     note: string | null;
 }
 
+export interface PriceTarget {
+    targetPrice: number;
+    upsidePct: number;
+}
+
 export interface DataCompleteness {
     available: number;
     total: number;
@@ -66,6 +71,7 @@ export interface AnalysisResult {
     longterm: HorizonResult;
     trading: HorizonResult;
     horizonAlignment: HorizonAlignment;
+    priceTarget: PriceTarget | null;
     disclaimer: string;
 }
 

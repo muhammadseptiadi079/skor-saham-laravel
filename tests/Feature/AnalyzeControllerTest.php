@@ -89,6 +89,7 @@ class AnalyzeControllerTest extends TestCase
             'longterm' => ['score', 'label'],
             'trading' => ['score', 'label'],
             'horizonAlignment' => ['aligned', 'note'],
+            'priceTarget',
             'disclaimer',
         ]);
         $response->assertJsonPath('ticker', 'BBCA');
@@ -110,6 +111,54 @@ class AnalyzeControllerTest extends TestCase
         // relative-momentum note should be present end-to-end, not just at the unit level.
         $momentumNotes = implode(' ', $response->json('subScores.momentum.notes'));
         $this->assertStringContainsString('IHSG', $momentumNotes);
+    }
+
+    public function test_price_target_is_present_end_to_end_when_analyst_target_price_is_available(): void
+    {
+        $timestamps = [];
+        $closes = [];
+        $volumes = [];
+        $base = 1_000_000_000;
+        for ($i = 0; $i < 25; $i++) {
+            $timestamps[] = $base + $i * 86400;
+            $closes[] = 3000 + $i * 10;
+            $volumes[] = 500_000;
+        }
+
+        Http::fake([
+            'https://query1.finance.yahoo.com/v8/finance/chart/*' => Http::response([
+                'chart' => ['result' => [[
+                    'meta' => ['currency' => 'IDR', 'symbol' => 'BBCA.JK'],
+                    'timestamp' => $timestamps,
+                    'indicators' => ['quote' => [['close' => $closes, 'volume' => $volumes]]],
+                ]]],
+            ]),
+            'https://query1.finance.yahoo.com/v10/finance/quoteSummary/*' => function ($request) {
+                if (str_contains($request->url(), 'insiderTransactions')) {
+                    return Http::response(['quoteSummary' => ['result' => [['insiderTransactions' => ['transactions' => []]]]]]);
+                }
+
+                return Http::response([
+                    'quoteSummary' => ['result' => [[
+                        'financialData' => ['targetMeanPrice' => ['raw' => 4000]],
+                        'defaultKeyStatistics' => [],
+                        'summaryDetail' => [],
+                    ]]],
+                ]);
+            },
+            'https://news.google.com/rss/search*' => Http::response(
+                '<?xml version="1.0"?><rss><channel></channel></rss>',
+                200,
+                ['Content-Type' => 'application/xml']
+            ),
+        ]);
+
+        $response = $this->getJson('/api/analyze?ticker=BBCA&market=idx');
+
+        $response->assertOk();
+        // Latest close is 3000 + 24*10 = 3240; target 4000 -> upside (4000-3240)/3240.
+        $response->assertJsonPath('priceTarget.targetPrice', 4000);
+        $this->assertEqualsWithDelta((4000 - 3240) / 3240, $response->json('priceTarget.upsidePct'), 0.0001);
     }
 
     public function test_national_theme_note_appears_when_watchlist_sector_matches_and_news_is_active(): void

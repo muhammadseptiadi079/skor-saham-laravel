@@ -95,6 +95,9 @@ class ScoringEngine
                 'confidenceNote' => $tradingConfidence['note'],
             ],
             'horizonAlignment' => $horizonAlignment,
+            // Real analyst consensus data (not a prediction this app makes itself), surfaced at the
+            // top level so the frontend can headline it instead of leaving it buried in a note.
+            'priceTarget' => $fundamentalResult['analystTarget'] ?? null,
             'disclaimer' => 'Ini analisis berbasis aturan sederhana (bukan prediksi yang terjamin akurat). '.
                 'Gunakan sebagai salah satu bahan pertimbangan, bukan satu-satunya dasar keputusan investasi/trading.',
         ];
@@ -105,11 +108,12 @@ class ScoringEngine
         $themeNotes = $this->nationalThemeNotes($activeThemes);
 
         if (! $f) {
-            return ['score' => null, 'notes' => [...$themeNotes, 'Data fundamental tidak tersedia.']];
+            return ['score' => null, 'notes' => [...$themeNotes, 'Data fundamental tidak tersedia.'], 'analystTarget' => null];
         }
 
         $notes = [];
         $parts = [];
+        $analystTarget = null;
         $contextNotes = [...$this->fundamentalContextNotes($f, $currency, $currentPrice, $sectorContext), ...$themeNotes];
 
         if ($this->isNum($f['revenueGrowthYoy'] ?? null)) {
@@ -167,6 +171,10 @@ class ScoringEngine
             $arah = $upside >= 0 ? 'naik' : 'turun';
             $notes[] = 'Target harga analis '.$this->pricePerShare($target, $currency).
                 " (potensi {$arah} {$this->pct(abs($upside))} dari harga sekarang) ({$this->describe($s)})";
+            // Surfaced separately (not just inside the note text above) so the frontend can show
+            // this number prominently — it's real consensus data from analysts, not something this
+            // app is predicting itself, which is why it's safe to headline unlike a made-up figure.
+            $analystTarget = ['targetPrice' => $target, 'upsidePct' => $upside];
         }
         // Consensus buy/hold/sell counts — a different angle from the target price above (that's
         // "how far", this is "how many analysts agree"). Also already fetched with the same
@@ -186,11 +194,11 @@ class ScoringEngine
         }
 
         if (count($parts) === 0) {
-            return ['score' => null, 'notes' => count($contextNotes) > 0 ? $contextNotes : ['Tidak ada rasio fundamental yang bisa dibaca.']];
+            return ['score' => null, 'notes' => count($contextNotes) > 0 ? $contextNotes : ['Tidak ada rasio fundamental yang bisa dibaca.'], 'analystTarget' => null];
         }
         $score = $this->clamp(array_sum($parts) / count($parts));
 
-        return ['score' => $score, 'notes' => [...$notes, ...$contextNotes]];
+        return ['score' => $score, 'notes' => [...$notes, ...$contextNotes], 'analystTarget' => $analystTarget];
     }
 
     // Crowd-psychology heuristic, not a directional claim: when analyst opinion is nearly
