@@ -121,3 +121,18 @@
         @apply bg-slate-50 text-slate-900;
     }
 }
+
+@layer utilities {
+    /* Hollow/outline lettering for the wordmark — solid fallback color first so browsers without
+       text-stroke support (older WebViews) still show readable text instead of nothing. */
+    .text-outline {
+        color: #0f172a;
+    }
+    @supports (-webkit-text-stroke: 1px black) or (text-stroke: 1px black) {
+        .text-outline {
+            color: transparent;
+            -webkit-text-stroke: 1.5px #0f172a;
+            text-stroke: 1.5px #0f172a;
+        }
+    }
+}

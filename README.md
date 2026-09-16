@@ -746,6 +746,23 @@ menahan diri dari warna supaya kesannya elegan bukan ramai.
   `gradient`/`glow` monokrom, tapi propnya tetap bisa di-override kalau di
   kemudian hari perlu warna lagi di tempat tertentu.
 
+## Round Ketujuh Belas: Wordmark Tanpa Logomark, Gaya Hollow/Outline
+
+Logomark kotak "S" di depan judul "Skor Saham" (ditambahkan Round 15)
+dihapus lagi, diganti gaya tipografi murni:
+
+- **Huruf besar semua** (`uppercase`) + `tracking-wide` supaya terasa lebih
+  tegas sebagai judul, bukan cuma teks biasa.
+- **Gaya "bolong" (hollow/outline)** — huruf jadi garis tepi saja, bagian
+  dalamnya transparan (background tembus pandang), lewat CSS
+  `-webkit-text-stroke` (kelas utilitas baru `.text-outline` di
+  `resources/css/app.css`). Efek ini eksklusif WebKit/Blink secara historis,
+  tapi didukung juga di Firefox modern — browser lama yang belum dukung akan
+  tetap lihat fallback teks hitam solid (bukan hilang), diatur lewat
+  `@supports` di CSS yang sama.
+- Wordmark sekarang cuma teks `<h1>` polos, tidak ada elemen ikon/kotak lagi
+  di depannya.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan

@@ -29,14 +29,7 @@ export default function AppLayout({ online, children, tabs, activeTab, onTabChan
 
             <div className="relative mx-auto flex min-h-screen max-w-3xl flex-col px-4 pb-24 sm:px-6 sm:pb-16">
                 <header className="sticky top-0 z-10 -mx-4 mb-4 flex items-center justify-between border-b border-slate-200 bg-slate-50/85 px-4 py-4 backdrop-blur-lg sm:-mx-6 sm:mb-0 sm:px-6">
-                    <h1 className="flex items-center gap-2.5">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-black font-display text-base font-extrabold text-white shadow-sm shadow-slate-900/40 ring-1 ring-white/15">
-                            S
-                        </span>
-                        <span className="font-display text-xl font-extrabold tracking-tight text-slate-900">
-                            <span className="font-semibold text-slate-500">Skor</span> Saham
-                        </span>
-                    </h1>
+                    <h1 className="text-outline font-display text-2xl font-extrabold tracking-wide uppercase">Skor Saham</h1>
                     <span
                         className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
                             online
