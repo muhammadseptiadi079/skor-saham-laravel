@@ -746,20 +746,25 @@ menahan diri dari warna supaya kesannya elegan bukan ramai.
   `gradient`/`glow` monokrom, tapi propnya tetap bisa di-override kalau di
   kemudian hari perlu warna lagi di tempat tertentu.
 
-## Round Ketujuh Belas: Wordmark Tanpa Logomark, Gaya Hollow/Outline
+## Round Ketujuh Belas: Wordmark Tanpa Logomark, Gaya Bolong-Bolong
 
 Logomark kotak "S" di depan judul "Skor Saham" (ditambahkan Round 15)
-dihapus lagi, diganti gaya tipografi murni:
+dihapus lagi, diganti gaya tipografi murni — solid, tebal, besar, huruf
+kapital semua, dengan lubang bulat acak yang "menembus" tiap huruf:
 
-- **Huruf besar semua** (`uppercase`) + `tracking-wide` supaya terasa lebih
-  tegas sebagai judul, bukan cuma teks biasa.
-- **Gaya "bolong" (hollow/outline)** — huruf jadi garis tepi saja, bagian
-  dalamnya transparan (background tembus pandang), lewat CSS
-  `-webkit-text-stroke` (kelas utilitas baru `.text-outline` di
-  `resources/css/app.css`). Efek ini eksklusif WebKit/Blink secara historis,
-  tapi didukung juga di Firefox modern — browser lama yang belum dukung akan
-  tetap lihat fallback teks hitam solid (bukan hilang), diatur lewat
-  `@supports` di CSS yang sama.
+- **Huruf besar semua** (`uppercase`), `font-extrabold`, ukuran dinaikkan
+  (`text-3xl` di HP, `text-4xl` di layar lebih lebar) supaya terasa tegas
+  sebagai judul.
+- **Efek lubang bulat acak** — dicoba dulu pakai `-webkit-text-stroke`
+  (garis tepi/hollow), tapi itu bukan yang dimaksud; efek yang benar dibuat
+  lewat CSS `mask-image` yang menumpuk tekstur SVG berisi belasan lingkaran
+  kecil di posisi acak (`public/textures/hole-punch.svg`, di-ulang/tile
+  lewat `mask-repeat: repeat`) di atas teks hitam solid. Hasilnya teks tetap
+  penuh warna hitam, tapi ada bintik-bintik bulat "bolong" tersebar acak di
+  tiap huruf — seperti kertas atau logam yang dilubangi (stensil/perforasi),
+  bukan sekadar garis tepi. Kelas utilitasnya `.text-holes` di
+  `resources/css/app.css`, dengan fallback teks hitam solid (tanpa lubang)
+  untuk browser yang tidak dukung `mask-image`, diatur lewat `@supports`.
 - Wordmark sekarang cuma teks `<h1>` polos, tidak ada elemen ikon/kotak lagi
   di depannya.
 

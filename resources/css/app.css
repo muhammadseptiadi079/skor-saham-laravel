@@ -123,16 +123,20 @@
 }
 
 @layer utilities {
-    /* Hollow/outline lettering for the wordmark — solid fallback color first so browsers without
-       text-stroke support (older WebViews) still show readable text instead of nothing. */
-    .text-outline {
+    /* Bold solid lettering with small round holes punched through it, via a repeating texture
+       (public/textures/hole-punch.svg) used as a mask. Solid fallback color first so browsers
+       without mask-image support still show readable (just un-punched) text instead of nothing. */
+    .text-holes {
         color: #0f172a;
     }
-    @supports (-webkit-text-stroke: 1px black) or (text-stroke: 1px black) {
-        .text-outline {
-            color: transparent;
-            -webkit-text-stroke: 1.5px #0f172a;
-            text-stroke: 1.5px #0f172a;
+    @supports (mask-image: none) or (-webkit-mask-image: none) {
+        .text-holes {
+            -webkit-mask-image: url('/textures/hole-punch.svg');
+            mask-image: url('/textures/hole-punch.svg');
+            -webkit-mask-repeat: repeat;
+            mask-repeat: repeat;
+            -webkit-mask-size: 88px 22px;
+            mask-size: 88px 22px;
         }
     }
 }
