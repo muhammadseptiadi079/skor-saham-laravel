@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 // Fetches data from the right sources for a ticker/market and runs it through ScoringEngine.
@@ -25,7 +28,13 @@ class StockAnalysisService
 
     public function analyze(string $ticker, string $market): array
     {
-        $data = $market === 'idx' ? $this->analyzeIdx($ticker) : $this->analyzeGlobal($ticker);
+        // Short-lived: covers an accidental double-click or the user re-checking the same stock
+        // a minute later without re-hitting every external API (and, for global tickers, without
+        // burning through Alpha Vantage's 25-requests/day free-tier limit on repeats). Long enough
+        // to matter, short enough that "just analyzed" data never goes stale in a way anyone would
+        // notice.
+        $cacheKey = "stock_raw_data:{$market}:".strtoupper($ticker);
+        $data = Cache::remember($cacheKey, now()->addMinutes(2), fn () => $market === 'idx' ? $this->analyzeIdx($ticker) : $this->analyzeGlobal($ticker));
         $sectorContext = $this->safe(fn () => $this->sectorValuation->averagesFor($ticker, $market));
         $sector = $this->safe(fn () => $this->sectorValuation->sectorFor($ticker, $market));
         $activeThemes = $this->safe(fn () => $this->nationalThemes->activeThemesForSector($sector, $market)) ?? [];
@@ -72,9 +81,20 @@ class StockAnalysisService
 
     private function analyzeGlobal(string $ticker): array
     {
-        $overview = $this->safe(fn () => $this->alphaVantage->getOverview($ticker));
-        $newsArticles = $this->safe(fn () => $this->alphaVantage->getNewsSentiment($ticker)) ?? [];
-        $priceSeries = $this->safe(fn () => $this->alphaVantage->getDailyTimeSeries($ticker));
+        // The three Alpha Vantage calls are independent of each other, so they're fired
+        // concurrently instead of waiting on each one in turn — previously the single biggest
+        // source of a slow "Analisis" click. SEC EDGAR (insider tx) has its own internal
+        // multi-step fetch (CIK -> filings -> per-filing docs, itself pooled — see
+        // SecEdgarService) so it's kept as a separate call rather than folded into this pool.
+        $responses = Http::pool(fn (Pool $pool) => [
+            'overview' => $pool->as('overview')->get($this->alphaVantage->baseUrl(), $this->alphaVantage->overviewQuery($ticker)),
+            'news' => $pool->as('news')->get($this->alphaVantage->baseUrl(), $this->alphaVantage->newsSentimentQuery($ticker)),
+            'price' => $pool->as('price')->get($this->alphaVantage->baseUrl(), $this->alphaVantage->dailyTimeSeriesQuery($ticker)),
+        ]);
+
+        $overview = $this->safe(fn () => $this->alphaVantage->parseOverview($this->json($responses['overview']), $ticker));
+        $newsArticles = $this->safe(fn () => $this->alphaVantage->parseNewsSentiment($this->json($responses['news']), $ticker)) ?? [];
+        $priceSeries = $this->safe(fn () => $this->alphaVantage->parseDailyTimeSeries($this->json($responses['price'])));
         $insiderTx = $this->safe(fn () => $this->secEdgar->getInsiderTransactions($ticker));
         $manualArticles = $this->safe(fn () => $this->manualNews->recentArticlesFor($ticker, 'global')) ?? [];
 
@@ -93,11 +113,28 @@ class StockAnalysisService
     private function analyzeIdx(string $ticker): array
     {
         $companyQuery = str_replace('.JK', '', $ticker);
+        $symbol = $this->yahooFinance->normalizeIdxTicker($ticker);
 
-        $fundamentals = $this->safe(fn () => $this->yahooFinance->getFundamentals($ticker));
-        $chart = $this->safe(fn () => $this->yahooFinance->getChart($ticker));
-        $newsRaw = $this->safe(fn () => $this->googleNews->getNews("saham {$companyQuery}")) ?? [];
-        $insiderTx = $this->safe(fn () => $this->yahooFinance->getInsiderTransactions($ticker));
+        // Fundamentals and insider-tx are two separate quoteSummary requests (different
+        // `modules`), plus the chart and news feed — all independent, so fired concurrently
+        // instead of as four sequential round trips. This is the main fix for the "app terasa
+        // lelet" (analysis feels sluggish) complaint: every single "Analisis" click used to wait
+        // on this chain one request at a time.
+        $responses = Http::pool(fn (Pool $pool) => [
+            'fundamentals' => $pool->as('fundamentals')->withHeaders(YahooFinanceService::headers())
+                ->get($this->yahooFinance->fundamentalsUrl($symbol), $this->yahooFinance->fundamentalsQuery()),
+            'insider' => $pool->as('insider')->withHeaders(YahooFinanceService::headers())
+                ->get($this->yahooFinance->fundamentalsUrl($symbol), $this->yahooFinance->insiderTransactionsQuery()),
+            'chart' => $pool->as('chart')->withHeaders(YahooFinanceService::headers())
+                ->get($this->yahooFinance->chartUrl($symbol), $this->yahooFinance->chartQuery()),
+            'news' => $pool->as('news')->withHeaders(GoogleNewsRssService::headers())
+                ->get($this->googleNews->url(), $this->googleNews->query("saham {$companyQuery}")),
+        ]);
+
+        $fundamentals = $this->safe(fn () => $this->yahooFinance->parseFundamentals($this->json($responses['fundamentals'])));
+        $chart = $this->safe(fn () => $this->yahooFinance->parseChart($this->json($responses['chart']), $symbol));
+        $newsRaw = $this->safe(fn () => $this->googleNews->parseNewsXml($this->body($responses['news']))) ?? [];
+        $insiderTx = $this->safe(fn () => $this->yahooFinance->parseInsiderTransactions($this->json($responses['insider'])));
 
         $scored = $this->sentiment->scoreArticles($newsRaw);
         $manualArticles = $this->safe(fn () => $this->manualNews->recentArticlesFor($ticker, 'idx')) ?? [];
@@ -144,5 +181,18 @@ class StockAnalysisService
 
             return null;
         }
+    }
+
+    // A pooled request that fails to connect comes back as an exception object in that slot
+    // instead of a Response (Http::pool() never throws itself) — these turn that into the same
+    // "null, handled by safe()" shape a normal try/catch around a blocking Http::get() would.
+    private function json($pooled): ?array
+    {
+        return $pooled instanceof Response ? $pooled->json() : null;
+    }
+
+    private function body($pooled): string
+    {
+        return $pooled instanceof Response ? $pooled->body() : '';
     }
 }

@@ -768,6 +768,47 @@ kapital semua, dengan lubang bulat acak yang "menembus" tiap huruf:
 - Wordmark sekarang cuma teks `<h1>` polos, tidak ada elemen ikon/kotak lagi
   di depannya.
 
+## Round Kedelapan Belas: Performa — Analisis Tidak Lelet Lagi
+
+Diagnosis: klik "Analisis" itu lambat bukan karena scoring-nya berat, tapi
+karena `StockAnalysisService` memanggil 4 sumber data eksternal (Yahoo
+Finance fundamentals, Yahoo Finance chart, berita Google News, Yahoo
+Finance insider tx — untuk IDX; atau Alpha Vantage overview/berita/harga +
+SEC EDGAR — untuk global) **satu per satu secara berurutan**, menunggu
+setiap request selesai sebelum mulai yang berikutnya. Untuk saham global
+yang punya aktivitas insider, ini bahkan lebih parah: `SecEdgarService`
+mengambil sampai 10 dokumen Form 4 **satu per satu** juga — total bisa
+sampai 14 request berurutan untuk satu kali analisis.
+
+- **Request paralel, bukan berurutan** — `StockAnalysisService::analyzeIdx()`
+  dan `analyzeGlobal()` sekarang memakai `Http::pool()` Laravel untuk
+  menembak semua request yang saling independen sekaligus, lalu menunggu
+  semuanya selesai bareng (bukan gantian). Waktu tunggunya jadi sama
+  dengan request paling lambat di antara semuanya, bukan jumlah semuanya.
+- **`SecEdgarService::getInsiderTransactions()`** — pengambilan sampai 10
+  dokumen Form 4 juga di-pool, jadi satu batch paralel alih-alih 10 request
+  berurutan. Ini kemungkinan penyumbang lelet terbesar untuk saham global
+  yang aktivitas insider-nya ramai.
+- Supaya `Http::pool()` bisa dipakai tanpa mengubah cara kerja method yang
+  sudah ada (dan tanpa merusak test), tiap service (`YahooFinanceService`,
+  `GoogleNewsRssService`, `AlphaVantageService`) dipecah jadi bagian
+  "bangun URL/query" + "parse response" — method lama (`getFundamentals()`,
+  `getChart()`, dst.) tetap ada dan berperilaku sama persis untuk pemanggil
+  lain (`BacktestService`, `NationalThemeService`), cuma sekarang manggil
+  method parse yang sama yang dipakai jalur pool.
+- **Cache singkat (2 menit)** untuk data mentah per ticker+market — kalau
+  ticker yang sama dianalisis ulang dalam 2 menit (klik dobel tidak
+  sengaja, atau lagi coba-coba testing), tidak perlu ambil ulang ke semua
+  sumber eksternal. Ini juga menghemat kuota gratis Alpha Vantage yang
+  cuma 25 request/hari. Trade-off: berita manual yang ditambahkan user
+  persis dalam jendela 2 menit itu baru kelihatan di analisis berikutnya
+  setelah cache-nya kedaluwarsa — dianggap sepadan mengingat jendelanya
+  pendek.
+- Tidak ada perubahan pada hasil analisis (skor, label, dll.) — ini murni
+  soal kecepatan, bukan logika. Semua 200 test yang ada tetap lulus tanpa
+  perubahan (Http::fake() di test tetap mencegat request meskipun sekarang
+  dikirim lewat pool).
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan

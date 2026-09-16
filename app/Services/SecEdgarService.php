@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -150,13 +152,21 @@ class SecEdgarService
             return [];
         }
 
+        // Fetched concurrently instead of one-by-one — with up to $limit (default 10) filings,
+        // sequential fetches were the single slowest part of analyzing a global ticker.
+        $responses = Http::pool(fn (Pool $pool) => collect($filings)
+            ->map(fn ($filing, $i) => $pool->as((string) $i)->withHeaders($this->headers())->get($this->docUrl($cik, $filing)))
+            ->all());
+
         $all = [];
-        foreach ($filings as $filing) {
-            try {
-                $xml = Http::withHeaders($this->headers())->get($this->docUrl($cik, $filing))->body();
-                $all = array_merge($all, $this->parseForm4($xml));
-            } catch (\Throwable $e) {
+        foreach ($responses as $response) {
+            if (! $response instanceof Response) {
                 continue; // one bad filing shouldn't sink the whole request
+            }
+            try {
+                $all = array_merge($all, $this->parseForm4($response->body()));
+            } catch (\Throwable $e) {
+                continue;
             }
         }
 

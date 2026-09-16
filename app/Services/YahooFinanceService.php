@@ -15,6 +15,41 @@ class YahooFinanceService
         return str_ends_with($t, '.JK') ? $t : "{$t}.JK";
     }
 
+    public static function headers(): array
+    {
+        return ['User-Agent' => 'Mozilla/5.0'];
+    }
+
+    public function chartUrl(string $symbol): string
+    {
+        return "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}";
+    }
+
+    public function chartQuery(): array
+    {
+        // 6mo gives enough daily bars for SMA50/MACD (needs 35-50+ closes), not just the 20-day
+        // momentum window.
+        return ['range' => '6mo', 'interval' => '1d'];
+    }
+
+    public function fundamentalsUrl(string $symbol): string
+    {
+        return "https://query1.finance.yahoo.com/v10/finance/quoteSummary/{$symbol}";
+    }
+
+    public function fundamentalsQuery(): array
+    {
+        // calendarEvents, recommendationTrend, and majorHoldersBreakdown all ride along on this
+        // same request (no extra HTTP call) — see ScoringEngine's earnings-proximity note,
+        // analyst recommendation scoring, and ownership notes.
+        return ['modules' => 'financialData,defaultKeyStatistics,summaryDetail,summaryProfile,calendarEvents,recommendationTrend,majorHoldersBreakdown'];
+    }
+
+    public function insiderTransactionsQuery(): array
+    {
+        return ['modules' => 'insiderTransactions'];
+    }
+
     public function getChart(string $ticker): ?array
     {
         return $this->getChartForSymbol($this->normalizeIdxTicker($ticker));
@@ -24,14 +59,13 @@ class YahooFinanceService
     // symbols (e.g. ^JKSE for IHSG) which aren't regular IDX-listed tickers.
     public function getChartForSymbol(string $symbol): ?array
     {
-        $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
-            ->get("https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}", [
-                // 6mo gives enough daily bars for SMA50/MACD (needs 35-50+ closes), not just the
-                // 20-day momentum window.
-                'range' => '6mo',
-                'interval' => '1d',
-            ])->json();
+        $data = Http::withHeaders(self::headers())->get($this->chartUrl($symbol), $this->chartQuery())->json();
 
+        return $this->parseChart($data, $symbol);
+    }
+
+    public function parseChart(?array $data, string $symbol): ?array
+    {
         $result = $data['chart']['result'][0] ?? null;
         if (! $result) {
             return null;
@@ -71,14 +105,17 @@ class YahooFinanceService
     {
         $symbol = $this->normalizeIdxTicker($ticker);
         try {
-            $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
-                ->get("https://query1.finance.yahoo.com/v10/finance/quoteSummary/{$symbol}", [
-                    // calendarEvents, recommendationTrend, and majorHoldersBreakdown all ride
-                    // along on this same request (no extra HTTP call) — see ScoringEngine's
-                    // earnings-proximity note, analyst recommendation scoring, and ownership notes.
-                    'modules' => 'financialData,defaultKeyStatistics,summaryDetail,summaryProfile,calendarEvents,recommendationTrend,majorHoldersBreakdown',
-                ])->json();
+            $data = Http::withHeaders(self::headers())->get($this->fundamentalsUrl($symbol), $this->fundamentalsQuery())->json();
 
+            return $this->parseFundamentals($data);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    public function parseFundamentals(?array $data): ?array
+    {
+        try {
             $result = $data['quoteSummary']['result'][0] ?? null;
             if (! $result) {
                 return null;
@@ -136,11 +173,17 @@ class YahooFinanceService
     {
         $symbol = $this->normalizeIdxTicker($ticker);
         try {
-            $data = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
-                ->get("https://query1.finance.yahoo.com/v10/finance/quoteSummary/{$symbol}", [
-                    'modules' => 'insiderTransactions',
-                ])->json();
+            $data = Http::withHeaders(self::headers())->get($this->fundamentalsUrl($symbol), $this->insiderTransactionsQuery())->json();
 
+            return $this->parseInsiderTransactions($data);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    public function parseInsiderTransactions(?array $data): ?array
+    {
+        try {
             $list = $data['quoteSummary']['result'][0]['insiderTransactions']['transactions'] ?? null;
             if (! is_array($list) || count($list) === 0) {
                 return [];

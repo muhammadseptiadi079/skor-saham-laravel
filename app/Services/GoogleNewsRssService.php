@@ -7,17 +7,30 @@ use Illuminate\Support\Facades\Http;
 // Google News RSS search — free, no key, but headlines only (no article body, no official sentiment).
 class GoogleNewsRssService
 {
+    public static function headers(): array
+    {
+        return ['User-Agent' => 'Mozilla/5.0'];
+    }
+
+    public function url(): string
+    {
+        return 'https://news.google.com/rss/search';
+    }
+
+    public function query(string $query, string $lang = 'id', string $country = 'ID'): array
+    {
+        return ['q' => $query, 'hl' => $lang, 'gl' => $country, 'ceid' => "{$country}:{$lang}"];
+    }
+
     public function getNews(string $query, string $lang = 'id', string $country = 'ID'): array
     {
-        $url = 'https://news.google.com/rss/search';
-        $xml = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
-            ->get($url, [
-                'q' => $query,
-                'hl' => $lang,
-                'gl' => $country,
-                'ceid' => "{$country}:{$lang}",
-            ])->body();
+        $xml = Http::withHeaders(self::headers())->get($this->url(), $this->query($query, $lang, $country))->body();
 
+        return $this->parseNewsXml($xml);
+    }
+
+    public function parseNewsXml(string $xml): array
+    {
         $prevSetting = libxml_use_internal_errors(true);
         $rss = simplexml_load_string($xml);
         libxml_use_internal_errors($prevSetting);

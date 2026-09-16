@@ -14,15 +14,36 @@ class AlphaVantageService
         return config('services.alpha_vantage.key', 'demo');
     }
 
+    public function baseUrl(): string
+    {
+        return self::BASE;
+    }
+
+    public function overviewQuery(string $ticker): array
+    {
+        return ['function' => 'OVERVIEW', 'symbol' => $ticker, 'apikey' => $this->apiKey()];
+    }
+
+    public function newsSentimentQuery(string $ticker): array
+    {
+        return ['function' => 'NEWS_SENTIMENT', 'tickers' => $ticker, 'limit' => 30, 'apikey' => $this->apiKey()];
+    }
+
+    public function dailyTimeSeriesQuery(string $ticker): array
+    {
+        return ['function' => 'TIME_SERIES_DAILY', 'symbol' => $ticker, 'outputsize' => 'compact', 'apikey' => $this->apiKey()];
+    }
+
     // Fundamentals: P/E, margin, revenue growth, ROE, etc.
     public function getOverview(string $ticker): ?array
     {
-        $data = Http::get(self::BASE, [
-            'function' => 'OVERVIEW',
-            'symbol' => $ticker,
-            'apikey' => $this->apiKey(),
-        ])->json();
+        $data = Http::get(self::BASE, $this->overviewQuery($ticker))->json();
 
+        return $this->parseOverview($data, $ticker);
+    }
+
+    public function parseOverview(?array $data, string $ticker): ?array
+    {
         if (empty($data) || isset($data['Note']) || isset($data['Information'])) {
             return null; // rate-limited or unknown ticker
         }
@@ -69,13 +90,13 @@ class AlphaVantageService
     // News + sentiment (Alpha Vantage already scores each article -1..1)
     public function getNewsSentiment(string $ticker): ?array
     {
-        $data = Http::get(self::BASE, [
-            'function' => 'NEWS_SENTIMENT',
-            'tickers' => $ticker,
-            'limit' => 30,
-            'apikey' => $this->apiKey(),
-        ])->json();
+        $data = Http::get(self::BASE, $this->newsSentimentQuery($ticker))->json();
 
+        return $this->parseNewsSentiment($data, $ticker);
+    }
+
+    public function parseNewsSentiment(?array $data, string $ticker): ?array
+    {
         if (empty($data['feed']) || ! is_array($data['feed'])) {
             return null;
         }
@@ -99,13 +120,13 @@ class AlphaVantageService
     // Daily close + volume, used for the momentum/volume sub-score.
     public function getDailyTimeSeries(string $ticker): ?array
     {
-        $data = Http::get(self::BASE, [
-            'function' => 'TIME_SERIES_DAILY',
-            'symbol' => $ticker,
-            'outputsize' => 'compact',
-            'apikey' => $this->apiKey(),
-        ])->json();
+        $data = Http::get(self::BASE, $this->dailyTimeSeriesQuery($ticker))->json();
 
+        return $this->parseDailyTimeSeries($data);
+    }
+
+    public function parseDailyTimeSeries(?array $data): ?array
+    {
         $series = $data['Time Series (Daily)'] ?? null;
         if (! $series) {
             return null;
