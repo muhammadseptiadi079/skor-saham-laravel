@@ -11,6 +11,7 @@ import type {
     WatchlistItem,
 } from '@/types';
 import AppLayout from '@/Components/AppLayout';
+import type { TabDef } from '@/Components/TabNav';
 import StatCard from '@/Components/dashboard/StatCard';
 import SearchForm from '@/Components/dashboard/SearchForm';
 import ResultPanel from '@/Components/dashboard/ResultPanel';
@@ -21,11 +22,24 @@ import ScreenerPanel from '@/Components/dashboard/ScreenerPanel';
 import IpoPanel from '@/Components/dashboard/IpoPanel';
 import LocalHistoryPanel from '@/Components/dashboard/LocalHistoryPanel';
 import AccuracyPanel from '@/Components/dashboard/AccuracyPanel';
-import { StarIcon, ChartUpIcon, ClockIcon, BriefcaseIcon } from '@/Components/Icons';
+import { SearchIcon, StarIcon, ChartUpIcon, ClockIcon, BriefcaseIcon, GaugeIcon } from '@/Components/Icons';
 import * as api from '@/lib/api';
 import { StockDB } from '@/lib/db';
 
+// Groups the dashboard's panels into tabs instead of one long stacked scroll — same panels,
+// just shown a few at a time. "Analisis" also gets the local history list since selecting a past
+// analysis there re-populates the same ResultPanel right above it.
+type TabId = 'analisis' | 'watchlist' | 'screener' | 'akurasi';
+
+const TABS: TabDef[] = [
+    { id: 'analisis', label: 'Analisis', icon: <SearchIcon className="h-5 w-5" /> },
+    { id: 'watchlist', label: 'Watchlist', icon: <StarIcon className="h-5 w-5" /> },
+    { id: 'screener', label: 'Screener', icon: <ChartUpIcon className="h-5 w-5" /> },
+    { id: 'akurasi', label: 'Akurasi', icon: <GaugeIcon className="h-5 w-5" /> },
+];
+
 export default function Dashboard() {
+    const [activeTab, setActiveTab] = useState<TabId>('analisis');
     const [online, setOnline] = useState(() => navigator.onLine);
     const [submitting, setSubmitting] = useState(false);
     const [status, setStatus] = useState<{ message: string; error?: boolean } | null>(null);
@@ -88,6 +102,7 @@ export default function Dashboard() {
 
     const runAnalyze = useCallback(
         async (ticker: string, market: Market) => {
+            setActiveTab('analisis');
             setSubmitting(true);
             setStatus({ message: `Menganalisis ${ticker.toUpperCase()}...` });
 
@@ -160,6 +175,7 @@ export default function Dashboard() {
     }
 
     function handleSelectCached(cached: CachedAnalysis) {
+        setActiveTab('analisis');
         showResult(cached.analysis, cached.savedAt);
     }
 
@@ -168,7 +184,7 @@ export default function Dashboard() {
         : false;
 
     return (
-        <AppLayout online={online}>
+        <AppLayout online={online} tabs={TABS} activeTab={activeTab} onTabChange={(id) => setActiveTab(id as TabId)}>
             <div className="mb-5">
                 <SearchForm onSubmit={runAnalyze} submitting={submitting} />
                 <p className="mt-2 text-xs text-slate-500">
@@ -194,6 +210,7 @@ export default function Dashboard() {
                     value={watchlist.length}
                     gradient="from-cyan-500 to-blue-600"
                     icon={<StarIcon filled className="h-full w-full" />}
+                    onClick={() => setActiveTab('watchlist')}
                 />
                 <StatCard
                     label="Potensi Naik"
@@ -201,6 +218,7 @@ export default function Dashboard() {
                     gradient="from-emerald-500 to-teal-600"
                     icon={<ChartUpIcon className="h-full w-full" />}
                     delayMs={60}
+                    onClick={() => setActiveTab('screener')}
                 />
                 <StatCard
                     label="Riwayat Tersimpan"
@@ -208,6 +226,7 @@ export default function Dashboard() {
                     gradient="from-violet-500 to-fuchsia-600"
                     icon={<ClockIcon className="h-full w-full" />}
                     delayMs={120}
+                    onClick={() => setActiveTab('analisis')}
                 />
                 <StatCard
                     label="IPO Terbaru"
@@ -215,49 +234,64 @@ export default function Dashboard() {
                     gradient="from-amber-500 to-orange-600"
                     icon={<BriefcaseIcon className="h-full w-full" />}
                     delayMs={180}
+                    onClick={() => setActiveTab('screener')}
                 />
             </div>
 
-            <div className="flex flex-col gap-5">
-                {result && (
-                    <ResultPanel
-                        result={result}
-                        savedAt={resultSavedAt}
-                        inWatchlist={inWatchlist}
-                        onAddWatchlist={handleAddWatchlist}
-                        trendEntries={resultTrend}
-                        accuracy={accuracy}
+            {activeTab === 'analisis' && (
+                <div className="flex flex-col gap-5">
+                    {result && (
+                        <ResultPanel
+                            result={result}
+                            savedAt={resultSavedAt}
+                            inWatchlist={inWatchlist}
+                            onAddWatchlist={handleAddWatchlist}
+                            trendEntries={resultTrend}
+                            accuracy={accuracy}
+                        />
+                    )}
+
+                    <ManualNewsPanel defaultTicker={result?.ticker} defaultMarket={result?.market} />
+                    <LocalHistoryPanel items={localHistory} onSelect={handleSelectCached} />
+                </div>
+            )}
+
+            {activeTab === 'watchlist' && (
+                <div className="flex flex-col gap-5">
+                    <WatchlistPanel
+                        items={watchlist}
+                        onSelect={runAnalyze}
+                        onRemove={handleRemoveWatchlist}
+                        onToggleFavorite={handleToggleFavorite}
+                        onChangeSector={handleChangeSector}
+                        onAddStarterPack={handleAddStarterPack}
+                        addingStarterPack={addingStarterPack}
                     />
-                )}
+                    <PortfolioPanel
+                        favorites={watchlist.filter((w) => w.is_favorite)}
+                        portfolio={portfolio}
+                        onUpdateHolding={handleUpdateHolding}
+                    />
+                </div>
+            )}
 
-                <ManualNewsPanel defaultTicker={result?.ticker} defaultMarket={result?.market} />
+            {activeTab === 'screener' && (
+                <div className="flex flex-col gap-5">
+                    <ScreenerPanel
+                        market={screenerMarket}
+                        onMarketChange={setScreenerMarket}
+                        response={screener}
+                        onSelect={runAnalyze}
+                    />
+                    <IpoPanel items={ipoListings} />
+                </div>
+            )}
 
-                <PortfolioPanel
-                    favorites={watchlist.filter((w) => w.is_favorite)}
-                    portfolio={portfolio}
-                    onUpdateHolding={handleUpdateHolding}
-                />
-
-                <AccuracyPanel data={accuracy} />
-
-                <WatchlistPanel
-                    items={watchlist}
-                    onSelect={runAnalyze}
-                    onRemove={handleRemoveWatchlist}
-                    onToggleFavorite={handleToggleFavorite}
-                    onChangeSector={handleChangeSector}
-                    onAddStarterPack={handleAddStarterPack}
-                    addingStarterPack={addingStarterPack}
-                />
-                <ScreenerPanel
-                    market={screenerMarket}
-                    onMarketChange={setScreenerMarket}
-                    response={screener}
-                    onSelect={runAnalyze}
-                />
-                <IpoPanel items={ipoListings} />
-                <LocalHistoryPanel items={localHistory} onSelect={handleSelectCached} />
-            </div>
+            {activeTab === 'akurasi' && (
+                <div className="flex flex-col gap-5">
+                    <AccuracyPanel data={accuracy} />
+                </div>
+            )}
         </AppLayout>
     );
 }

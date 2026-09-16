@@ -648,6 +648,36 @@ kontras terbaca di atas putih — bukan sekadar ganti warna latar saja.
   dibiarkan** — itu blok warna solid dengan teks putih di atasnya, tetap
   kontras bagus di latar apa pun, jadi tidak perlu diubah.
 
+## Round Ketiga Belas: Navigasi Tab (Responsif HP & Laptop)
+
+Dashboard-nya sebelumnya satu halaman panjang berisi 8 panel ditumpuk
+ke bawah (hasil analisis, berita manual, portfolio, akurasi, watchlist,
+screener, IPO, riwayat) — sekarang dipecah jadi 4 tab, dengan navigasi
+yang wujudnya beda menurut lebar layar alih-alih satu tampilan yang
+dipaksakan sama di HP dan laptop:
+
+- **Di HP** (lebar layar < `sm` breakpoint Tailwind, ~640px): bottom tab
+  bar mengambang di bawah layar, ala aplikasi native — gampang dijangkau
+  jempol.
+- **Di laptop/tablet lebar**: tab horizontal biasa di bawah header,
+  dengan garis bawah biru menandai tab aktif — pola navigasi desktop
+  yang lebih wajar dibanding bottom bar yang dipaksakan ke layar lebar.
+- **Satu komponen (`TabNav`), dua tampilan** — keduanya di-render
+  sekaligus di DOM, tapi cuma satu yang kelihatan di lebar layar
+  tertentu (lewat class Tailwind `hidden sm:flex` / `sm:hidden`),
+  bukan dua komponen terpisah yang harus disinkronkan manual.
+- **Pembagian tab**: *Analisis* (pencarian, hasil, input berita manual,
+  riwayat tersimpan di HP), *Watchlist* (watchlist + portfolio),
+  *Screener* (screener + IPO), *Akurasi* (panel akurasi historis).
+  Riwayat ditaruh di tab Analisis karena klik satu baris riwayat
+  langsung menampilkan hasilnya di `ResultPanel` yang ada di tab yang
+  sama.
+- **Kartu statistik di atas jadi bisa diklik** — klik "Watchlist"
+  langsung pindah ke tab Watchlist, dst. Memilih ticker dari panel
+  Watchlist/Screener atau riwayat lokal juga otomatis memindahkan ke
+  tab Analisis supaya hasilnya langsung kelihatan, tidak peduli dari
+  tab mana aksinya dipicu.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan

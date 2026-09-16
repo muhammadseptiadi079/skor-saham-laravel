@@ -1,12 +1,16 @@
 import type { ReactNode } from 'react';
 import { WifiIcon, WifiOffIcon } from '@/Components/Icons';
+import TabNav, { type TabDef } from '@/Components/TabNav';
 
 interface AppLayoutProps {
     online: boolean;
     children: ReactNode;
+    tabs: TabDef[];
+    activeTab: string;
+    onTabChange: (id: string) => void;
 }
 
-export default function AppLayout({ online, children }: AppLayoutProps) {
+export default function AppLayout({ online, children, tabs, activeTab, onTabChange }: AppLayoutProps) {
     return (
         <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900">
             {/* Faint decorative washes, sit behind the cards — much softer than a dark theme's glow
@@ -23,8 +27,8 @@ export default function AppLayout({ online, children }: AppLayoutProps) {
                 />
             </div>
 
-            <div className="relative mx-auto flex min-h-screen max-w-3xl flex-col px-4 pb-16 sm:px-6">
-                <header className="sticky top-0 z-10 -mx-4 mb-6 flex items-center justify-between border-b border-slate-200 bg-slate-50/85 px-4 py-4 backdrop-blur-lg sm:-mx-6 sm:px-6">
+            <div className="relative mx-auto flex min-h-screen max-w-3xl flex-col px-4 pb-24 sm:px-6 sm:pb-16">
+                <header className="sticky top-0 z-10 -mx-4 mb-4 flex items-center justify-between border-b border-slate-200 bg-slate-50/85 px-4 py-4 backdrop-blur-lg sm:-mx-6 sm:mb-0 sm:px-6">
                     <h1 className="bg-gradient-to-r from-cyan-600 via-sky-600 to-violet-600 bg-clip-text text-lg font-bold text-transparent">
                         Skor Saham
                     </h1>
@@ -39,6 +43,8 @@ export default function AppLayout({ online, children }: AppLayoutProps) {
                         {online ? 'Online' : 'Offline'}
                     </span>
                 </header>
+
+                <TabNav tabs={tabs} active={activeTab} onChange={onTabChange} />
 
                 <main className="animate-page-in flex-1">{children}</main>
 
