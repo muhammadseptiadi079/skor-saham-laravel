@@ -695,6 +695,31 @@ ada perubahan data/logika:
 - Prop baru `glow` di `StatCard` (opsional, ada default abu-abu netral)
   supaya pemakaian di tempat lain tidak wajib ikut berubah kalau ada.
 
+## Round Kelima Belas: Font Kustom + Perbaikan Wordmark
+
+Font sebelumnya ikut default browser (`ui-sans-serif, system-ui`), yang
+terasa generik. Sekarang pakai font kustom dari Google Fonts, dimuat lewat
+`<link>` di `resources/views/app.blade.php` (bukan `@import` di CSS, supaya
+tidak memblokir render):
+
+- **Inter** — font dasar untuk seluruh body teks (`--font-sans`), dipilih
+  karena keterbacaannya bagus untuk UI padat data dan angka `tabular-nums`
+  rapi.
+- **Plus Jakarta Sans** — font tambahan (`--font-display`, kelas
+  `font-display`) khusus untuk elemen yang perlu terasa "branded": wordmark
+  header, nama saham di hasil analisis, angka besar di kartu statistik, dan
+  label skor di gauge. Dipakai sedikit dan selektif, bukan untuk semua judul,
+  supaya tidak berlebihan.
+- **Wordmark "Skor Saham" dirapikan** — sebelumnya teks kecil (`text-lg`)
+  dengan gradient 3 warna yang bikin tulisannya kelihatan berantakan di
+  ukuran kecil. Sekarang ada logomark kotak (huruf "S" di atas gradient
+  cyan→ungu) + teks lebih besar (`text-xl`, `font-extrabold`,
+  `tracking-tight`), dan gradient dipersempit cuma di kata "Saham" (kata
+  "Skor" warna solid) supaya lebih tegas dibaca.
+- **`theme-color` meta tag diperbaiki** — masih `#0f172a` (gelap) sisa dari
+  tema lama sebelum konversi ke tema terang, sekarang `#f8fafc` supaya warna
+  status bar browser di HP tidak kontras aneh dengan tampilan terang.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan

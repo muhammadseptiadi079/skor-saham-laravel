@@ -27,7 +27,7 @@ export default function StatCard({ label, value, icon, gradient, glow = 'shadow-
                 className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 via-transparent to-black/10"
             />
             <div className="animate-breathe pointer-events-none absolute -top-3 -right-3 h-20 w-20">{icon}</div>
-            <p className="relative text-3xl font-bold tabular-nums">{value}</p>
+            <p className="relative font-display text-3xl font-bold tabular-nums">{value}</p>
             <p className="relative mt-1 text-xs font-medium text-white/85">{label}</p>
         </button>
     );

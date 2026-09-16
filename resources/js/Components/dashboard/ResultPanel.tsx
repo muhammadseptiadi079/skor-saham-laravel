@@ -86,7 +86,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
         <GlassCard className="animate-fade-in-up p-5">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <h2 className="text-xl font-bold text-slate-900">
+                    <h2 className="font-display text-xl font-bold tracking-tight text-slate-900">
                         {result.name} <span className="text-slate-600">({result.ticker})</span>
                     </h2>
                     <p className="text-xs text-slate-500">Diperbarui: {when.toLocaleString('id-ID')}</p>

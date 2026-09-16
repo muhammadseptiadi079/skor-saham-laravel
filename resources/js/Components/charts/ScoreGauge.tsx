@@ -68,7 +68,7 @@ export default function ScoreGauge({ score, label, title }: ScoreGaugeProps) {
             </svg>
             <div className="-mt-4 text-center">
                 <p className="text-xs font-medium tracking-wide text-slate-600 uppercase">{title}</p>
-                <p className="text-2xl font-bold" style={{ color: colorForScore(score) }}>
+                <p className="font-display text-2xl font-bold" style={{ color: colorForScore(score) }}>
                     {label}
                 </p>
                 {score !== null && <p className="text-xs text-slate-500">skor {score.toFixed(2)}</p>}

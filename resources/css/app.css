@@ -4,8 +4,11 @@
 @source '../../storage/framework/views/*.php';
 
 @theme {
-    --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-        'Noto Color Emoji';
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    /* Used for the wordmark, section headings, and big numbers — a bit more character than Inter
+       for the handful of spots that should feel "branded" rather than purely functional. */
+    --font-display: 'Plus Jakarta Sans', var(--font-sans);
 
     /* Entrance / transition animations, used across the dashboard for a livelier feel. */
     --animate-fade-in-up: fadeInUp 0.6s ease-out both;

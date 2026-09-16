@@ -6,10 +6,17 @@
 
     <title inertia>{{ config('app.name', 'Skor Saham') }}</title>
 
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#f8fafc" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    />
 
     @vite(['resources/css/app.css', 'resources/js/app.tsx'])
     @inertiaHead
