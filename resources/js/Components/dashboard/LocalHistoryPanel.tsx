@@ -9,7 +9,7 @@ interface LocalHistoryPanelProps {
 
 export default function LocalHistoryPanel({ items, onSelect }: LocalHistoryPanelProps) {
     return (
-        <Panel title="Riwayat (tersimpan di HP)" icon={<ClockIcon className="h-4 w-4 text-violet-300" />}>
+        <Panel title="Riwayat (tersimpan di HP)" icon={<ClockIcon className="h-4 w-4 text-violet-700" />}>
             {items.length === 0 ? (
                 <p className="text-sm text-slate-500">Belum ada riwayat tersimpan di perangkat ini.</p>
             ) : (
@@ -19,9 +19,9 @@ export default function LocalHistoryPanel({ items, onSelect }: LocalHistoryPanel
                             <button
                                 type="button"
                                 onClick={() => onSelect(item)}
-                                className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left transition-colors hover:border-white/20"
+                                className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left transition-colors hover:border-slate-300"
                             >
-                                <span className="truncate text-sm text-slate-200">
+                                <span className="truncate text-sm text-slate-800">
                                     {item.analysis.name} <span className="text-slate-500">({item.analysis.ticker})</span>
                                 </span>
                                 <span className="text-xs whitespace-nowrap text-slate-500">

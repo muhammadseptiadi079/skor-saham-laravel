@@ -8,17 +8,17 @@ import HistoryLineChart from '@/Components/charts/HistoryLineChart';
 import { StarIcon, NewsIcon, UsersIcon, GaugeIcon } from '@/Components/Icons';
 
 function completenessColorClass(available: number, total: number): string {
-    if (available === total) return 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300';
-    if (available >= total / 2) return 'border-amber-400/30 bg-amber-400/10 text-amber-300';
+    if (available === total) return 'border-emerald-300 bg-emerald-50 text-emerald-700';
+    if (available >= total / 2) return 'border-amber-300 bg-amber-50 text-amber-700';
 
-    return 'border-rose-400/30 bg-rose-400/10 text-rose-300';
+    return 'border-rose-300 bg-rose-50 text-rose-700';
 }
 
 function confidenceColorClass(level: string): string {
-    if (level === 'Tinggi') return 'text-emerald-400';
-    if (level === 'Sedang') return 'text-amber-400';
+    if (level === 'Tinggi') return 'text-emerald-600';
+    if (level === 'Sedang') return 'text-amber-600';
 
-    return 'text-rose-400';
+    return 'text-rose-600';
 }
 
 function money(v: number, currency: string): string {
@@ -41,7 +41,7 @@ function pctValue(v: number): string {
 }
 
 function movementColorClass(v: number): string {
-    return v >= 0 ? 'text-emerald-400' : 'text-rose-400';
+    return v >= 0 ? 'text-emerald-600' : 'text-rose-600';
 }
 
 interface ResultPanelProps {
@@ -60,7 +60,7 @@ function NoteList({ notes, delayBase = 0 }: { notes: string[]; delayBase?: numbe
             {notes.map((note, i) => (
                 <li
                     key={note}
-                    className="animate-row-in text-sm text-slate-300"
+                    className="animate-row-in text-sm text-slate-700"
                     style={{ animationDelay: `${delayBase + i * 60}ms` }}
                 >
                     {note}
@@ -86,14 +86,14 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
         <GlassCard className="animate-fade-in-up p-5">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <h2 className="text-xl font-bold text-white">
-                        {result.name} <span className="text-slate-400">({result.ticker})</span>
+                    <h2 className="text-xl font-bold text-slate-900">
+                        {result.name} <span className="text-slate-600">({result.ticker})</span>
                     </h2>
                     <p className="text-xs text-slate-500">Diperbarui: {when.toLocaleString('id-ID')}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                     {isBearish && (
-                        <span className="animate-pulse-ring rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-1 text-[10px] font-semibold tracking-wide text-rose-300 uppercase">
+                        <span className="animate-pulse-ring rounded-full border border-rose-300 bg-rose-50 px-2 py-1 text-[10px] font-semibold tracking-wide text-rose-700 uppercase">
                             Perlu perhatian
                         </span>
                     )}
@@ -106,7 +106,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                     </span>
                     {result.lowLiquidity && (
                         <span
-                            className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-[10px] font-semibold whitespace-nowrap text-amber-300"
+                            className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-semibold whitespace-nowrap text-amber-700"
                             title="Volume transaksi harian tipis — sinyal teknikal kurang bisa diandalkan"
                         >
                             Likuiditas rendah
@@ -141,7 +141,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
             </div>
 
             {result.horizonAlignment.aligned === false && result.horizonAlignment.note && (
-                <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+                <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                     {result.horizonAlignment.note}
                 </div>
             )}
@@ -150,7 +150,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     {result.priceTarget && (
                         <GlassCard className="p-3.5">
-                            <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">Target Analis</p>
+                            <p className="text-[11px] font-semibold tracking-wide text-slate-600 uppercase">Target Analis</p>
                             <p className={`mt-1 text-2xl font-bold ${movementColorClass(result.priceTarget.upsidePct)}`}>
                                 {pctFraction(result.priceTarget.upsidePct)}
                             </p>
@@ -162,7 +162,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                     )}
                     {historicalReturn && (
                         <GlassCard className="p-3.5">
-                            <p className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
+                            <p className="text-[11px] font-semibold tracking-wide text-slate-600 uppercase">
                                 Riwayat Label &quot;{historicalReturn.label}&quot;
                             </p>
                             <p className={`mt-1 text-2xl font-bold ${movementColorClass(historicalReturn.avgForwardReturnPct)}`}>
@@ -183,11 +183,11 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                     <select
                         value={sector}
                         onChange={(e) => setSector(e.target.value)}
-                        className="rounded-xl border border-white/15 bg-white/5 px-2.5 py-2 text-sm text-slate-300"
+                        className="rounded-xl border border-slate-300 bg-slate-50 px-2.5 py-2 text-sm text-slate-700"
                         title="Sektor untuk pengelompokan watchlist"
                     >
                         {SECTORS.map((s) => (
-                            <option key={s} value={s} className="bg-slate-800 text-slate-200">
+                            <option key={s} value={s} className="bg-white text-slate-800">
                                 {s}
                             </option>
                         ))}
@@ -199,8 +199,8 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                     disabled={inWatchlist}
                     className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-transform hover:scale-105 active:scale-95 disabled:hover:scale-100 ${
                         inWatchlist
-                            ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
-                            : 'border-white/15 bg-white/5 text-slate-200 hover:border-white/30'
+                            ? 'border-amber-300 bg-amber-50 text-amber-700'
+                            : 'border-slate-300 bg-slate-50 text-slate-800 hover:border-slate-400'
                     }`}
                 >
                     <StarIcon filled={inWatchlist} className="h-4 w-4" />
@@ -209,7 +209,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
             </div>
 
             <div className="mt-5">
-                <h3 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Rincian Sub-skor</h3>
+                <h3 className="mb-2 text-xs font-semibold tracking-wide text-slate-600 uppercase">Rincian Sub-skor</h3>
                 <GlassCard className="p-3">
                     <SubScoreBarChart
                         rows={[
@@ -225,17 +225,17 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <GlassCard className="p-3.5">
-                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Fundamental</h4>
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-600 uppercase">Fundamental</h4>
                     <NoteList notes={result.subScores.fundamentals.notes} />
                 </GlassCard>
 
                 <GlassCard className="p-3.5">
-                    <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                    <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-slate-600 uppercase">
                         <NewsIcon className="h-3.5 w-3.5" /> Berita
                     </h4>
                     <NoteList notes={result.subScores.news.notes} />
                     {result.subScores.news.topArticles.length > 0 && (
-                        <ul className="mt-2 space-y-1 border-t border-white/10 pt-2">
+                        <ul className="mt-2 space-y-1 border-t border-slate-200 pt-2">
                             {result.subScores.news.topArticles.map((a) =>
                                 a.url ? (
                                     <li key={a.url} className="text-xs">
@@ -243,13 +243,13 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                                             href={a.url}
                                             target="_blank"
                                             rel="noopener"
-                                            className="text-sky-300 hover:text-sky-200 hover:underline"
+                                            className="text-sky-700 hover:text-sky-700 hover:underline"
                                         >
                                             {a.title}
                                         </a>
                                     </li>
                                 ) : (
-                                    <li key={a.title} className="text-xs text-slate-300">
+                                    <li key={a.title} className="text-xs text-slate-700">
                                         {a.title}
                                         {a.source && <span className="text-slate-500"> — {a.source}</span>}
                                     </li>
@@ -260,26 +260,26 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                 </GlassCard>
 
                 <GlassCard className="p-3.5">
-                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">Momentum & Volume</h4>
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-600 uppercase">Momentum & Volume</h4>
                     <NoteList notes={result.subScores.momentum.notes} />
                 </GlassCard>
 
                 <GlassCard className="p-3.5">
-                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-600 uppercase">
                         Tren Jangka Panjang
                     </h4>
                     <NoteList notes={result.subScores.momentumLongTerm.notes} />
                 </GlassCard>
 
                 <GlassCard className="p-3.5">
-                    <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                    <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-slate-600 uppercase">
                         <UsersIcon className="h-3.5 w-3.5" /> Kepemilikan & Insider
                     </h4>
                     <NoteList notes={result.subScores.ownership.notes} />
                     {result.subScores.ownership.transactions.length > 0 && (
-                        <ul className="mt-2 space-y-1 border-t border-white/10 pt-2">
+                        <ul className="mt-2 space-y-1 border-t border-slate-200 pt-2">
                             {result.subScores.ownership.transactions.map((t, i) => (
-                                <li key={`${t.insiderName}-${i}`} className="text-xs text-slate-300">
+                                <li key={`${t.insiderName}-${i}`} className="text-xs text-slate-700">
                                     {t.type === 'buy' ? '↑ Beli' : '↓ Jual'} — {t.insiderName} ({t.role}),{' '}
                                     {Number(t.shares).toLocaleString('id-ID')} lembar
                                     {t.date ? ` · ${t.date}` : ''}
@@ -292,7 +292,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
 
             {trendEntries.length >= 2 && (
                 <div className="mt-5">
-                    <h3 className="mb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">
+                    <h3 className="mb-2 text-xs font-semibold tracking-wide text-slate-600 uppercase">
                         Tren Skor Trading
                     </h3>
                     <GlassCard className="p-3">
@@ -301,7 +301,7 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                 </div>
             )}
 
-            <p className="mt-5 border-t border-white/10 pt-3 text-xs text-slate-500">{result.disclaimer}</p>
+            <p className="mt-5 border-t border-slate-200 pt-3 text-xs text-slate-500">{result.disclaimer}</p>
         </GlassCard>
     );
 }

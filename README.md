@@ -625,6 +625,29 @@ catatan**, ditaruh sebagai kotak besar tepat di bawah gauge skor:
   "diam kalau tidak ada yang bisa dikatakan dengan jujur" yang dipakai
   di seluruh aplikasi ini.
 
+## Round Kedua Belas: Tema Terang
+
+Dashboard aslinya pakai tema gelap ala glassmorphism (kartu transparan
+blur + blob warna melayang). Diganti total ke tema terang: latar putih
+kebiruan (`slate-50`), kartu solid putih dengan border tipis + shadow
+halus (`GlassCard`), dan semua warna teks/badge disesuaikan supaya
+kontras terbaca di atas putih — bukan sekadar ganti warna latar saja.
+
+- **Kenapa**: untuk aplikasi finansial, latar terang lebih umum (mirip
+  Stockbit/RTI) karena hijau-merah naik-turun lebih kontras dan gampang
+  dibaca sekilas dibanding di atas latar gelap.
+- **Bukan cuma ganti satu variabel warna** — badge sentimen/skor yang
+  sebelumnya pakai teks pastel di atas latar gelap tembus pandang
+  (`text-emerald-300` di atas `bg-emerald-400/10`, kontras bagus di
+  gelap tapi nyaris tak terbaca di putih) diganti jadi teks solid gelap
+  di atas latar tint terang (`text-emerald-700` di atas `bg-emerald-50`).
+  Jarum gauge skor dan garis grid di chart SVG (sebelumnya putih/abu
+  gelap, didesain untuk latar gelap) juga diganti warnanya biar tetap
+  kelihatan di atas kartu putih.
+- **Kartu statistik gradient (Watchlist/Potensi Naik/Riwayat/IPO) sengaja
+  dibiarkan** — itu blok warna solid dengan teks putih di atasnya, tetap
+  kontras bagus di latar apa pun, jadi tidak perlu diubah.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan

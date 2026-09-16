@@ -23,10 +23,10 @@ export default function SubScoreBarChart({ rows }: { rows: Row[] }) {
                         className="animate-row-in grid grid-cols-[5.5rem_1fr_3rem] items-center gap-2 sm:grid-cols-[6.5rem_1fr_3rem]"
                         style={{ animationDelay: `${i * 60}ms` }}
                     >
-                        <span className="truncate text-xs font-medium text-slate-300">{row.label}</span>
+                        <span className="truncate text-xs font-medium text-slate-700">{row.label}</span>
                         <svg viewBox={`0 0 ${BAR_VIEWBOX_WIDTH} 16`} className="h-3.5 w-full" preserveAspectRatio="none">
-                            <rect x={0} y={6} width={BAR_VIEWBOX_WIDTH} height={4} rx={2} fill="#1e293b" />
-                            <line x1={CENTER} y1={0} x2={CENTER} y2={16} stroke="#475569" strokeWidth={1} />
+                            <rect x={0} y={6} width={BAR_VIEWBOX_WIDTH} height={4} rx={2} fill="#e2e8f0" />
+                            <line x1={CENTER} y1={0} x2={CENTER} y2={16} stroke="#94a3b8" strokeWidth={1} />
                             {row.score !== null && (
                                 <rect x={barX} y={4} width={magnitude} height={8} rx={4} fill={color} />
                             )}

@@ -47,15 +47,15 @@ export default function WatchlistPanel({
     return (
         <Panel
             title="Watchlist"
-            icon={<StarIcon className="h-4 w-4 text-amber-300" filled />}
+            icon={<StarIcon className="h-4 w-4 text-amber-700" filled />}
             right={
                 <button
                     type="button"
                     onClick={() => setFavoritesOnly((v) => !v)}
                     className={`rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors ${
                         favoritesOnly
-                            ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
-                            : 'border-white/10 bg-white/5 text-slate-400 hover:border-white/20'
+                            ? 'border-amber-300 bg-amber-50 text-amber-700'
+                            : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                     }`}
                     title="Tampilkan hanya saham yang ditandai favorit (sudah dibeli)"
                 >
@@ -63,15 +63,15 @@ export default function WatchlistPanel({
                 </button>
             }
         >
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2.5">
-                <span className="text-xs text-slate-400">Kurang pilihan di suatu sektor?</span>
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                <span className="text-xs text-slate-600">Kurang pilihan di suatu sektor?</span>
                 <select
                     value={starterSector}
                     onChange={(e) => setStarterSector(e.target.value)}
-                    className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-300"
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700"
                 >
                     {STARTER_PACK_SECTORS.map((s) => (
-                        <option key={s} value={s} className="bg-slate-800 text-slate-200">
+                        <option key={s} value={s} className="bg-white text-slate-800">
                             {s}
                         </option>
                     ))}
@@ -80,7 +80,7 @@ export default function WatchlistPanel({
                     type="button"
                     onClick={() => onAddStarterPack(starterSector)}
                     disabled={addingStarterPack}
-                    className="rounded-lg border border-sky-400/30 bg-sky-400/10 px-2.5 py-1 text-xs font-medium text-sky-300 transition-colors hover:border-sky-400/50 disabled:opacity-50"
+                    className="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 transition-colors hover:border-sky-400 disabled:opacity-50"
                     title="Tambahkan sekumpulan saham IDX terkenal di sektor ini ke watchlist"
                 >
                     {addingStarterPack ? 'Menambahkan...' : '+ Tambah starter pack'}
@@ -102,14 +102,14 @@ export default function WatchlistPanel({
                                 {sectorItems.map((item, i) => (
                                     <li
                                         key={item.id}
-                                        className="animate-row-in flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:border-white/20"
+                                        className="animate-row-in flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 transition-colors hover:border-slate-300"
                                         style={{ animationDelay: `${i * 50}ms` }}
                                     >
                                         <button
                                             type="button"
                                             onClick={() => onToggleFavorite(item.id, !item.is_favorite)}
-                                            className={`shrink-0 rounded-full p-1 transition-colors hover:bg-white/10 ${
-                                                item.is_favorite ? 'text-amber-300' : 'text-slate-500 hover:text-slate-300'
+                                            className={`shrink-0 rounded-full p-1 transition-colors hover:bg-slate-100 ${
+                                                item.is_favorite ? 'text-amber-700' : 'text-slate-500 hover:text-slate-700'
                                             }`}
                                             aria-label={
                                                 item.is_favorite
@@ -123,7 +123,7 @@ export default function WatchlistPanel({
                                         <button
                                             type="button"
                                             onClick={() => onSelect(item.ticker, item.market)}
-                                            className="flex-1 truncate text-left text-sm text-slate-200"
+                                            className="flex-1 truncate text-left text-sm text-slate-800"
                                         >
                                             {item.name || item.ticker}{' '}
                                             <span className="text-slate-500">({item.ticker})</span>
@@ -131,11 +131,11 @@ export default function WatchlistPanel({
                                         <select
                                             value={item.sector || DEFAULT_SECTOR}
                                             onChange={(e) => onChangeSector(item.id, e.target.value)}
-                                            className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-1.5 py-1 text-[11px] text-slate-400"
+                                            className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-1.5 py-1 text-[11px] text-slate-600"
                                             title="Ubah sektor"
                                         >
                                             {SECTORS.map((s) => (
-                                                <option key={s} value={s} className="bg-slate-800 text-slate-200">
+                                                <option key={s} value={s} className="bg-white text-slate-800">
                                                     {s}
                                                 </option>
                                             ))}
@@ -143,7 +143,7 @@ export default function WatchlistPanel({
                                         <button
                                             type="button"
                                             onClick={() => onRemove(item.id)}
-                                            className="shrink-0 rounded-full p-1 text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-200"
+                                            className="shrink-0 rounded-full p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
                                             aria-label="Hapus dari watchlist"
                                         >
                                             <CloseIcon className="h-3.5 w-3.5" />

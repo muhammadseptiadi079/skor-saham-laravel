@@ -11,11 +11,11 @@ interface ManualNewsPanelProps {
 }
 
 function sentimentLabel(score: number): { text: string; className: string } {
-    if (score >= 0.5) return { text: 'sangat positif', className: 'text-emerald-400' };
-    if (score >= 0.15) return { text: 'positif', className: 'text-emerald-400' };
-    if (score > -0.15) return { text: 'netral', className: 'text-slate-400' };
-    if (score > -0.5) return { text: 'negatif', className: 'text-rose-400' };
-    return { text: 'sangat negatif', className: 'text-rose-400' };
+    if (score >= 0.5) return { text: 'sangat positif', className: 'text-emerald-600' };
+    if (score >= 0.15) return { text: 'positif', className: 'text-emerald-600' };
+    if (score > -0.15) return { text: 'netral', className: 'text-slate-600' };
+    if (score > -0.5) return { text: 'negatif', className: 'text-rose-600' };
+    return { text: 'sangat negatif', className: 'text-rose-600' };
 }
 
 function candidateLabel(c: TickerCandidate): string {
@@ -128,7 +128,7 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
     const awaitingResolution = candidates !== null && !lastAdded;
 
     return (
-        <Panel title="Input Berita Manual" icon={<NewsIcon className="h-4 w-4 text-sky-300" />}>
+        <Panel title="Input Berita Manual" icon={<NewsIcon className="h-4 w-4 text-sky-700" />}>
             <p className="mb-3 text-xs text-slate-500">
                 Ada berita yang tidak ke-detect otomatis (misal dari Stockbit atau aplikasi lain)?
                 Ketik atau upload screenshot-nya — <strong>tidak perlu pilih ticker dulu</strong>,
@@ -148,10 +148,10 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                         }}
                         placeholder="Ketik atau tempel teks berita di sini..."
                         rows={3}
-                        className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500"
+                        className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-500"
                     />
                     <div className="flex flex-wrap items-center gap-2">
-                        <label className="cursor-pointer rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-slate-300 transition-colors hover:border-white/30">
+                        <label className="cursor-pointer rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-700 transition-colors hover:border-slate-400">
                             {image ? image.name : 'Upload screenshot'}
                             <input
                                 type="file"
@@ -168,7 +168,7 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                             <button
                                 type="button"
                                 onClick={() => setImage(null)}
-                                className="text-xs text-slate-500 hover:text-slate-300"
+                                className="text-xs text-slate-500 hover:text-slate-700"
                             >
                                 Batal
                             </button>
@@ -176,7 +176,7 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="ml-auto rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-sm font-medium text-sky-300 transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                            className="ml-auto rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                         >
                             {submitting ? 'Menganalisis...' : 'Analisis'}
                         </button>
@@ -185,8 +185,8 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
             )}
 
             {awaitingResolution && candidates!.length > 1 && (
-                <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3">
-                    <p className="text-xs text-slate-400">
+                <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-slate-600">
                         Berita ini sepertinya menyebut beberapa saham. Ini tentang saham yang mana?
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -196,7 +196,7 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                                 type="button"
                                 disabled={submitting}
                                 onClick={() => finalize(c, detectedText!)}
-                                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-slate-200 transition-colors hover:border-sky-400/40 hover:text-sky-300 disabled:opacity-50"
+                                className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 transition-colors hover:border-sky-300 hover:text-sky-700 disabled:opacity-50"
                             >
                                 {candidateLabel(c)}
                             </button>
@@ -205,7 +205,7 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                     <button
                         type="button"
                         onClick={() => setManualOverride((v) => !v)}
-                        className="self-start text-xs text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
+                        className="self-start text-xs text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
                     >
                         Bukan saham yang dimaksud? Pilih manual
                     </button>
@@ -213,7 +213,7 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
             )}
 
             {awaitingResolution && candidates!.length === 0 && (
-                <p className="rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                     Tidak ada saham yang ke-detect otomatis dari teks ini (belum ada di watchlist/daftar
                     saham yang dikenal). Pilih ticker-nya manual di bawah.
                 </p>
@@ -226,24 +226,24 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                         value={manualTicker}
                         onChange={(e) => setManualTicker(e.target.value.toUpperCase())}
                         placeholder="Ticker, mis. BBCA"
-                        className="w-32 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500"
+                        className="w-32 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-500"
                     />
                     <select
                         value={manualMarket}
                         onChange={(e) => setManualMarket(e.target.value as Market)}
-                        className="rounded-xl border border-white/15 bg-white/5 px-2 py-2 text-sm text-slate-300"
+                        className="rounded-xl border border-slate-300 bg-slate-50 px-2 py-2 text-sm text-slate-700"
                     >
-                        <option value="idx" className="bg-slate-800 text-slate-200">
+                        <option value="idx" className="bg-white text-slate-800">
                             IDX
                         </option>
-                        <option value="global" className="bg-slate-800 text-slate-200">
+                        <option value="global" className="bg-white text-slate-800">
                             Global
                         </option>
                     </select>
                     <button
                         type="submit"
                         disabled={submitting}
-                        className="rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-sm font-medium text-sky-300 disabled:opacity-50"
+                        className="rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 disabled:opacity-50"
                     >
                         Simpan
                     </button>
@@ -254,22 +254,22 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                 <button
                     type="button"
                     onClick={resetDraft}
-                    className="mt-2 text-xs text-slate-500 hover:text-slate-300"
+                    className="mt-2 text-xs text-slate-500 hover:text-slate-700"
                 >
                     Batal, tulis ulang
                 </button>
             )}
 
-            {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
+            {error && <p className="mt-2 text-xs text-rose-600">{error}</p>}
 
             {lastAdded && (
-                <p className="mt-2 text-xs text-emerald-400">
+                <p className="mt-2 text-xs text-emerald-600">
                     Ditambahkan ke {candidateLabel(lastAdded)}.
                 </p>
             )}
 
             {items.length > 0 && (
-                <ul className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-3">
+                <ul className="mt-4 flex flex-col gap-2 border-t border-slate-200 pt-3">
                     {items.map((item) => {
                         const s = sentimentLabel(item.sentimentScore);
                         const keywords = [...item.matchedKeywords.positive, ...item.matchedKeywords.negative];
@@ -277,14 +277,14 @@ export default function ManualNewsPanel({ defaultTicker, defaultMarket }: Manual
                         return (
                             <li
                                 key={item.id}
-                                className="animate-row-in rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+                                className="animate-row-in rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
                             >
                                 <div className="flex items-start justify-between gap-2">
-                                    <p className="text-sm text-slate-200">{item.text}</p>
+                                    <p className="text-sm text-slate-800">{item.text}</p>
                                     <button
                                         type="button"
                                         onClick={() => handleRemove(item.id)}
-                                        className="shrink-0 rounded-full p-1 text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-200"
+                                        className="shrink-0 rounded-full p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
                                         aria-label="Hapus berita ini"
                                     >
                                         <CloseIcon className="h-3.5 w-3.5" />

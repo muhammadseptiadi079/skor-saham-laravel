@@ -173,14 +173,14 @@ export default function Dashboard() {
                 <SearchForm onSubmit={runAnalyze} submitting={submitting} />
                 <p className="mt-2 text-xs text-slate-500">
                     Alat bantu analisis dari berita, laporan keuangan, dan tren volume —{' '}
-                    <strong className="text-slate-400">bukan jaminan prediksi harga.</strong>
+                    <strong className="text-slate-600">bukan jaminan prediksi harga.</strong>
                 </p>
                 {status && (
                     <div
                         className={`animate-fade-in-up mt-2 rounded-xl border px-3 py-2 text-sm ${
                             status.error
-                                ? 'border-rose-400/30 bg-rose-400/10 text-rose-300'
-                                : 'border-white/10 bg-white/5 text-slate-300'
+                                ? 'border-rose-300 bg-rose-50 text-rose-700'
+                                : 'border-slate-200 bg-slate-50 text-slate-700'
                         }`}
                     >
                         {status.message}

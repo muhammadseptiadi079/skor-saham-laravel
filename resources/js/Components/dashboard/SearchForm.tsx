@@ -23,12 +23,12 @@ export default function SearchForm({ onSubmit, submitting }: SearchFormProps) {
             <select
                 value={market}
                 onChange={(e) => setMarket(e.target.value as Market)}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-100 backdrop-blur-xl focus:border-cyan-400/50 focus:outline-none"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 backdrop-blur-xl focus:border-cyan-400 focus:outline-none"
             >
-                <option value="idx" className="bg-slate-900">
+                <option value="idx" className="bg-white">
                     IDX (Indonesia)
                 </option>
-                <option value="global" className="bg-slate-900">
+                <option value="global" className="bg-white">
                     Global (US, dll)
                 </option>
             </select>
@@ -38,7 +38,7 @@ export default function SearchForm({ onSubmit, submitting }: SearchFormProps) {
                 type="text"
                 placeholder="Contoh: BBCA atau AAPL"
                 autoComplete="off"
-                className="min-w-36 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 backdrop-blur-xl focus:border-cyan-400/50 focus:outline-none"
+                className="min-w-36 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder-slate-500 backdrop-blur-xl focus:border-cyan-400 focus:outline-none"
             />
             <button
                 type="submit"

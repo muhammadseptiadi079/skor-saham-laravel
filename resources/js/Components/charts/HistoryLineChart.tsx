@@ -37,7 +37,7 @@ export default function HistoryLineChart({ entries }: { entries: HistoryEntry[] 
                     <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
                 </linearGradient>
             </defs>
-            <line x1={PAD_X} y1={zeroY} x2={W - PAD_X} y2={zeroY} stroke="#334155" strokeDasharray="4 4" />
+            <line x1={PAD_X} y1={zeroY} x2={W - PAD_X} y2={zeroY} stroke="#cbd5e1" strokeDasharray="4 4" />
             <path d={areaPath} fill="url(#history-fill)" stroke="none" />
             <path d={linePath} fill="none" stroke="#38bdf8" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
             {coords.map((c) => (

@@ -16,17 +16,17 @@ export default function ScreenerPanel({ market, onMarketChange, response, onSele
     return (
         <Panel
             title="Potensi Naik (Screener)"
-            icon={<ChartUpIcon className="h-4 w-4 text-emerald-300" />}
+            icon={<ChartUpIcon className="h-4 w-4 text-emerald-700" />}
             right={
                 <select
                     value={market}
                     onChange={(e) => onMarketChange(e.target.value as Market)}
-                    className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-200"
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-800"
                 >
-                    <option value="idx" className="bg-slate-900">
+                    <option value="idx" className="bg-white">
                         IDX
                     </option>
-                    <option value="global" className="bg-slate-900">
+                    <option value="global" className="bg-white">
                         Global
                     </option>
                 </select>
@@ -39,7 +39,7 @@ export default function ScreenerPanel({ market, onMarketChange, response, onSele
             {items.length === 0 ? (
                 <p className="text-sm text-slate-500">
                     Belum ada data screener. Jalankan{' '}
-                    <code className="rounded bg-white/10 px-1 py-0.5 text-xs">php artisan stocks:refresh-scores</code>{' '}
+                    <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">php artisan stocks:refresh-scores</code>{' '}
                     di server dulu.
                 </p>
             ) : (
@@ -53,9 +53,9 @@ export default function ScreenerPanel({ market, onMarketChange, response, onSele
                             <button
                                 type="button"
                                 onClick={() => onSelect(item.ticker, item.market)}
-                                className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left transition-colors hover:border-white/20"
+                                className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left transition-colors hover:border-slate-300"
                             >
-                                <span className="truncate text-sm text-slate-200">
+                                <span className="truncate text-sm text-slate-800">
                                     {item.name || item.ticker} <span className="text-slate-500">({item.ticker})</span>
                                 </span>
                                 <span className={`text-xs font-semibold whitespace-nowrap ${textClassForScore(item.trading_score ?? item.longterm_score)}`}>
