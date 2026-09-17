@@ -1,4 +1,4 @@
-# Skor Saham (Laravel)
+# Julak Saham (Laravel)
 
 Versi Laravel dari aplikasi PWA analisis skor saham — fungsinya identik dengan
 versi Node.js: skor jangka panjang & trading dari berita, laporan keuangan,
@@ -1041,6 +1041,37 @@ tema monokrom aplikasi.
 - Cuma diterapkan di tab bar bawah (khusus HP) — tab bar horizontal di
   layar lebar (laptop) tetap pakai garis bawah statis seperti
   sebelumnya, karena lebar tiap tab di situ tidak seragam.
+
+## Round Kedua Puluh Delapan: Ganti Nama Jadi "Julak Saham" + Wordmark Baru
+
+Nama aplikasi diganti dari "Skor Saham" jadi **"Julak Saham"**, dan
+wordmark teks polos di header diganti jadi logo grafis bergaya pita
+mengalir — referensinya logo Hot Wheels (pita hitam melengkung dengan
+lidah api di ujung kiri dan ekor melengkung di ujung kanan, tulisan
+putih mengikuti lekukan pita), warnanya disesuaikan ke tema monokrom
+(hitam-putih, bukan merah).
+
+- **`Wordmark.tsx` (komponen baru)** — satu `<svg>` custom: sebuah
+  `<path>` melengkung (S-curve) dipakai dua kali — sekali sebagai
+  garis tengah yang di-stroke tebal dengan `stroke-linecap="round"`
+  untuk membentuk badan pita (jauh lebih simpel daripada menggambar
+  dua tepi pita secara terpisah), dan sekali lagi sebagai jalur untuk
+  `<textPath>` supaya tulisan "JULAK SAHAM" otomatis mengikuti lekukan
+  yang sama. Lidah api di kiri dan ekor melengkung di kanan cuma dua
+  `<path>` terisi (filled shape) tambahan yang disambung ke ujung pita.
+  Semua warnanya pakai `currentColor` supaya ikut warna teks
+  pembungkusnya (`text-black`), bukan warna hardcoded.
+- **Class `.text-holes` (tekstur lubang-lubang dari Round 17) dihapus**
+  — sudah tidak dipakai lagi karena wordmark sekarang grafis penuh,
+  bukan teks biasa yang di-mask.
+- **Nama diganti di semua tempat yang user lihat**: `<title>` tab
+  browser (`app.blade.php`, fallback `config('app.name')`),
+  `APP_NAME` di `.env`/`.env.example`, `name`/`short_name` di
+  `manifest.json` (PWA), dan judul README ini. Identifier internal
+  yang tidak kelihatan user (nama database IndexedDB di
+  `lib/db.ts`, nama cache service worker) sengaja **tidak** diganti —
+  supaya riwayat analisis yang sudah tersimpan di HP tidak hilang
+  gara-gara nama storage-nya berubah.
 
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 

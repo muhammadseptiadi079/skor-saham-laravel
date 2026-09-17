@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-    <title inertia>{{ config('app.name', 'Skor Saham') }}</title>
+    <title inertia>{{ config('app.name', 'Julak Saham') }}</title>
 
     <meta name="theme-color" content="#f8fafc" />
     <link rel="manifest" href="/manifest.json" />

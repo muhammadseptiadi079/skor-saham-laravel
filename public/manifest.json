@@ -1,6 +1,6 @@
 {
-  "name": "Skor Saham",
-  "short_name": "SkorSaham",
+  "name": "Julak Saham",
+  "short_name": "JulakSaham",
   "description": "Analisis skor saham dari berita, laporan keuangan, dan volume",
   "start_url": "/",
   "scope": "/",
