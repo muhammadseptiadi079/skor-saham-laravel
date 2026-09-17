@@ -1002,6 +1002,28 @@ ditandai favorit langsung dari situ tanpa analisis satu-satu.
   name)` supaya dipakai bersama oleh kartu Trading di hasil analisis
   dan baris-baris Screener ini.
 
+## Round Kedua Puluh Tujuh: Indikator Tab Bawah Meluncur dengan Efek Pegas
+
+Tab bar di HP (bottom nav) sebelumnya cuma ganti warna/tebal teks pas
+pindah tab, tidak ada elemen visual yang bergerak. Sekarang ada garis
+indikator selebar penuh tiap tab, yang meluncur ke posisi tab aktif
+tiap kali diklik:
+
+- Garis (`<span>` hitam setinggi 3px) diposisikan lewat satu elemen
+  `absolute` yang di-geser pakai `transform: translateX()`, bukan
+  digambar ulang per tab — jadi transisinya benar-benar meluncur dari
+  posisi lama ke posisi baru, bukan cuma muncul-hilang.
+- Easing-nya sengaja pakai kurva pegas yang sama dengan animasi
+  `animate-pop-in` yang sudah dipakai di tempat lain (`cubic-bezier(0.34,
+  1.56, 0.64, 1)`) — sedikit "overshoot" lalu pantul balik ke posisi
+  pas, itu yang bikin efeknya kerasa seperti gelombang/pegas, bukan
+  geser lurus kaku.
+- Cuma diterapkan di tab bar bawah (khusus HP) — tab bar horizontal di
+  layar lebar (laptop) tetap pakai garis bawah statis seperti
+  sebelumnya, karena lebar tiap tab di situ tidak seragam (mengikuti
+  panjang label), jadi menghitung posisi geser yang presisi butuh
+  pengukuran elemen yang lebih rumit dan belum diminta.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
