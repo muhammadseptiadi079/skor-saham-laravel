@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 
 export interface TabDef {
     id: string;
@@ -12,30 +12,41 @@ interface TabNavProps {
     onChange: (id: string) => void;
 }
 
-// The bottom bar's indicator is one continuous stroke spanning all tabs (not a separate bar per
-// tab), sitting flush under the icons/labels and dipping down into a "gelombang" (wave) right
-// below whichever tab is active — built as a single path so its shape (same command structure
-// every time, only the crest's x-position changes) can morph smoothly via the CSS `d` property
-// instead of jumping.
-const WAVE_VIEW_WIDTH = 100;
-const WAVE_VIEW_HEIGHT = 16;
-const WAVE_BASELINE_Y = 3;
-const WAVE_CREST_Y = 13;
-const WAVE_SHOULDER_SPREAD = 12; // how far the crest's slope reaches out before flattening
+// Mobile bottom nav is a floating black capsule whose top edge stays flat except right above the
+// active tab, where it rises into a smooth hill that pokes above the capsule — the active icon
+// sits up inside that hill while its label stays anchored at the normal row. Built from a single
+// closed SVG path (filled black, stroked white) so the hill's position can morph via the CSS `d`
+// property instead of jumping; every corner/side command stays byte-identical between renders,
+// only the hill's own coordinates change, which is what lets the browser interpolate smoothly.
+const BAR_TOP_Y = 24; // y of the flat top edge (px) — headroom above it is where the hill rises into
+const BAR_BOTTOM_Y = 76; // y of the flat bottom edge (px), i.e. the capsule's total height
+const CREST_Y = 8; // y of the hill's peak for the active tab (px)
+const CORNER_RADIUS = (BAR_BOTTOM_Y - BAR_TOP_Y) / 2; // fully rounded capsule ends
+const SHOULDER_SPREAD = 48; // how far the hill's slope reaches out before flattening (px)
+const ICON_LIFT_PX = 11; // how far the active tab's icon rises up into the hill
 
-function waveIndicatorPath(activeIndex: number, tabCount: number): string {
-    const crestX = ((activeIndex + 0.5) / tabCount) * WAVE_VIEW_WIDTH;
-    const leftShoulder = Math.max(0, crestX - WAVE_SHOULDER_SPREAD);
-    const rightShoulder = Math.min(WAVE_VIEW_WIDTH, crestX + WAVE_SHOULDER_SPREAD);
-    const leftControl = crestX - WAVE_SHOULDER_SPREAD / 2;
-    const rightControl = crestX + WAVE_SHOULDER_SPREAD / 2;
+function capsulePath(width: number, activeIndex: number, tabCount: number): string {
+    const r = CORNER_RADIUS;
+    const crestX = ((activeIndex + 0.5) / tabCount) * width;
+    const leftShoulder = Math.max(r, crestX - SHOULDER_SPREAD);
+    const rightShoulder = Math.min(width - r, crestX + SHOULDER_SPREAD);
+    const leftControl = crestX - SHOULDER_SPREAD / 2;
+    const rightControl = crestX + SHOULDER_SPREAD / 2;
 
     return (
-        `M 0,${WAVE_BASELINE_Y} ` +
-        `L ${leftShoulder},${WAVE_BASELINE_Y} ` +
-        `C ${leftControl},${WAVE_BASELINE_Y} ${leftControl},${WAVE_CREST_Y} ${crestX},${WAVE_CREST_Y} ` +
-        `C ${rightControl},${WAVE_CREST_Y} ${rightControl},${WAVE_BASELINE_Y} ${rightShoulder},${WAVE_BASELINE_Y} ` +
-        `L ${WAVE_VIEW_WIDTH},${WAVE_BASELINE_Y}`
+        `M ${r},${BAR_TOP_Y} ` +
+        `L ${leftShoulder},${BAR_TOP_Y} ` +
+        `C ${leftControl},${BAR_TOP_Y} ${leftControl},${CREST_Y} ${crestX},${CREST_Y} ` +
+        `C ${rightControl},${CREST_Y} ${rightControl},${BAR_TOP_Y} ${rightShoulder},${BAR_TOP_Y} ` +
+        `L ${width - r},${BAR_TOP_Y} ` +
+        `A ${r},${r} 0 0 1 ${width},${BAR_TOP_Y + r} ` +
+        `L ${width},${BAR_BOTTOM_Y - r} ` +
+        `A ${r},${r} 0 0 1 ${width - r},${BAR_BOTTOM_Y} ` +
+        `L ${r},${BAR_BOTTOM_Y} ` +
+        `A ${r},${r} 0 0 1 0,${BAR_BOTTOM_Y - r} ` +
+        `L 0,${BAR_TOP_Y + r} ` +
+        `A ${r},${r} 0 0 1 ${r},${BAR_TOP_Y} ` +
+        `Z`
     );
 }
 
@@ -43,6 +54,19 @@ function waveIndicatorPath(activeIndex: number, tabCount: number): string {
 // phones — same tabs/state, just different chrome per screen size instead of one layout
 // awkwardly stretched to fit both. Only one of the two is ever visible at a given width.
 export default function TabNav({ tabs, active, onChange }: TabNavProps) {
+    const wrapRef = useRef<HTMLDivElement>(null);
+    const [width, setWidth] = useState(360);
+
+    useLayoutEffect(() => {
+        const el = wrapRef.current;
+        if (!el) return;
+        const measure = () => setWidth(el.clientWidth);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
     const activeIndex = Math.max(
         0,
         tabs.findIndex((t) => t.id === active)
@@ -69,45 +93,55 @@ export default function TabNav({ tabs, active, onChange }: TabNavProps) {
             </nav>
 
             <nav
-                className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur-lg sm:hidden"
-                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                className="fixed inset-x-0 bottom-0 z-20 flex justify-center px-3 sm:hidden"
+                style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}
             >
-                <div className="flex">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            type="button"
-                            onClick={() => onChange(tab.id)}
-                            className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] transition-colors ${
-                                active === tab.id ? 'font-bold text-black' : 'font-medium text-slate-500'
-                            }`}
-                        >
-                            {tab.icon}
-                            {tab.label}
-                        </button>
-                    ))}
+                <div ref={wrapRef} className="relative w-full" style={{ height: BAR_BOTTOM_Y }}>
+                    <svg
+                        aria-hidden
+                        width={width}
+                        height={BAR_BOTTOM_Y}
+                        className="pointer-events-none absolute inset-0 drop-shadow-[0_6px_16px_rgba(0,0,0,0.28)]"
+                    >
+                        <path
+                            fill="#000"
+                            stroke="#fff"
+                            strokeOpacity={0.85}
+                            strokeWidth={2}
+                            style={{
+                                d: `path("${capsulePath(width, activeIndex, tabs.length)}")`,
+                                transition: 'd 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                            }}
+                        />
+                    </svg>
+                    <div className="absolute inset-x-0 bottom-0 flex" style={{ height: BAR_BOTTOM_Y - BAR_TOP_Y }}>
+                        {tabs.map((tab) => {
+                            const isActive = tab.id === active;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => onChange(tab.id)}
+                                    className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px]"
+                                >
+                                    <span
+                                        className={isActive ? 'text-white' : 'text-white/55'}
+                                        style={{
+                                            display: 'inline-flex',
+                                            transform: isActive ? `translateY(-${ICON_LIFT_PX}px)` : undefined,
+                                            transition: 'transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                        }}
+                                    >
+                                        {tab.icon}
+                                    </span>
+                                    <span className={isActive ? 'font-bold text-white' : 'font-medium text-white/55'}>
+                                        {tab.label}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
-                {/* One continuous line across all tabs, sitting flush under the icons/labels and
-                    dipping down into a wave right below the active tab — morphs smoothly to the
-                    new tab's position via the CSS `d` property (path() notation) rather than
-                    jumping. */}
-                <svg
-                    aria-hidden
-                    viewBox={`0 0 ${WAVE_VIEW_WIDTH} ${WAVE_VIEW_HEIGHT}`}
-                    preserveAspectRatio="none"
-                    className="pointer-events-none block h-4 w-full"
-                >
-                    <path
-                        fill="none"
-                        stroke="#000"
-                        strokeWidth={2.5}
-                        strokeLinecap="round"
-                        style={{
-                            d: `path("${waveIndicatorPath(activeIndex, tabs.length)}")`,
-                            transition: 'd 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                        }}
-                    />
-                </svg>
             </nav>
         </>
     );

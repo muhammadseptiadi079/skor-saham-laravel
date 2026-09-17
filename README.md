@@ -1002,37 +1002,42 @@ ditandai favorit langsung dari situ tanpa analisis satu-satu.
   name)` supaya dipakai bersama oleh kartu Trading di hasil analisis
   dan baris-baris Screener ini.
 
-## Round Kedua Puluh Tujuh: Garis Gelombang yang Menyambung 4 Tab
+## Round Kedua Puluh Tujuh: Tab Bar Kapsul Hitam dengan Gelombang Aktif
 
 Tab bar di HP (bottom nav) sebelumnya cuma ganti warna/tebal teks pas
-pindah tab, tidak ada elemen visual yang bergerak. Dua percobaan
-sebelumnya (bar hitam terpisah per tab yang meluncur, lalu satu garis
-yang melengkung **di atas** ikon) bukan yang dimaksud — referensi
-gambar yang dikirim menunjukkan garisnya nempel **di bawah**
-ikon/label (bukan melayang di atasnya), dan cuma melengkung turun
-membentuk gelombang di bawah tab yang lagi aktif. Bentuk finalnya:
-**satu garis menyambung dari ujung ke ujung melewati keempat tab, rata
-di bawah baris ikon/label**, dan mencekung turun tepat di bawah tab
-yang aktif, lalu meluncur pindah kalau tab lain diklik. Warnanya tetap
-hitam pekat (`#000`) sesuai tema monokrom aplikasi, bukan warna merah
-seperti di gambar referensi.
+pindah tab, tidak ada elemen visual yang bergerak. Dua percobaan awal
+(bar hitam terpisah per tab yang meluncur, lalu satu garis tipis yang
+melengkung di atas/di bawah baris ikon) masih meleset dari yang
+dimaksud — referensi videonya (contoh animasi nav bar bergaya
+TikTok/Instagram) menunjukkan desain yang jauh lebih spesifik: bar-nya
+sendiri berbentuk **kapsul hitam mengambang** (bukan bar putih
+selebar layar seperti sebelumnya), dengan tepi atasnya rata di semua
+tab **kecuali** tab yang aktif — di situ tepinya naik membentuk
+"bukit" kecil yang menonjol di atas kapsul, dan ikon tab itu ikut naik
+duduk di puncak bukitnya sementara labelnya tetap di baris bawah.
+Warnanya diganti dari merah (di video referensi) ke hitam-putih sesuai
+tema monokrom aplikasi.
 
-- **Satu `<path>` SVG, bukan elemen terpisah per tab** — diletakkan
-  sebagai strip tipis di bawah baris tombol (bukan lagi menumpuk di
-  atasnya), jalur digambar dari x=0 sampai x=100% dengan satu lengkungan
-  (dua kurva Bezier) yang mencekung turun di tengah tab yang aktif
-  (`waveIndicatorPath()`), datar dekat baris tombol di sisa jalurnya.
-  Struktur perintah path-nya selalu sama (M, L, C, C, L) di setiap
-  posisi aktif — cuma angka koordinat cekungannya yang berubah — supaya
-  bisa dianimasikan mulus.
-- **Transisinya lewat properti CSS `d`** (bukan `transform`) memakai
-  notasi `path("...")`, dengan `transition: d 400ms` — browser modern
-  meng-interpolasi bentuk path lama ke path baru secara halus selama
-  strukturnya sama, jadi gelombangnya benar-benar "mengalir" pindah
-  posisi, bukan loncat atau bar terpisah yang geser.
-- Easing tetap pakai kurva pegas yang sama dengan `animate-pop-in`
-  (`cubic-bezier(0.34, 1.56, 0.64, 1)`) supaya gelombangnya kerasa
-  sedikit memantul, bukan kaku.
+- **Satu `<path>` SVG tertutup (filled + stroked), bukan bar terpisah
+  atau garis tipis** — jalur digambar sebagai outline penuh kapsul:
+  datar di bagian atas dari ujung ke ujung, lalu naik-turun (dua kurva
+  Bezier) membentuk bukit tepat di tengah tab aktif
+  (`capsulePath()`), lanjut ke sudut kanan (arc), sisi kanan, tepi
+  bawah rata, sudut kiri (arc), sisi kiri, balik ke awal. Struktur
+  perintah path-nya (M, L, C, C, L, A, L, A, L, A, L, A, Z) selalu
+  sama di setiap posisi aktif — cuma koordinat bukitnya yang berubah —
+  supaya `<path>`-nya bisa dianimasikan mulus lewat properti CSS `d`
+  (notasi `path("...")`, `transition: d 400ms`, easing pegas yang sama
+  dengan `animate-pop-in`), bukan loncat.
+- **Lebar kapsul diukur langsung dari elemen pembungkusnya**
+  (`ResizeObserver` + `clientWidth`) supaya path-nya digambar dalam
+  koordinat piksel asli 1:1, bukan persentase yang di-stretch —
+  perlu supaya sudut-sudut kapsul tetap bulat sempurna, bukan jadi
+  lonjong karena skala horizontal/vertikal yang beda.
+- **Ikon tab aktif ikut naik** (`translateY`) ke posisi kira-kira di
+  puncak bukit, transisinya sinkron dengan animasi path-nya; labelnya
+  sengaja tidak ikut naik supaya tetap gampang dibaca di baris normal,
+  sama seperti di video referensi.
 - Cuma diterapkan di tab bar bawah (khusus HP) — tab bar horizontal di
   layar lebar (laptop) tetap pakai garis bawah statis seperti
   sebelumnya, karena lebar tiap tab di situ tidak seragam.
