@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type { PortfolioResponse, WatchlistItem } from '@/types';
 import Panel from './Panel';
 import GlassCard from '@/Components/GlassCard';
-import { BriefcaseIcon } from '@/Components/Icons';
+import EmptyState from './EmptyState';
+import { BriefcaseIcon, StarIcon } from '@/Components/Icons';
 
 interface PortfolioPanelProps {
     favorites: WatchlistItem[];
@@ -128,10 +129,10 @@ export default function PortfolioPanel({ favorites, portfolio, onUpdateHolding }
     if (favorites.length === 0) {
         return (
             <Panel title="Portfolio" icon={<BriefcaseIcon className="h-4 w-4 text-slate-700" />}>
-                <p className="text-sm text-slate-500">
-                    Belum ada saham favorit (yang sudah dibeli). Tandai bintang di panel Watchlist
-                    dulu, lalu isi jumlah lembar & harga beli di sini.
-                </p>
+                <EmptyState
+                    icon={<StarIcon className="h-5 w-5" filled />}
+                    message="Belum ada saham favorit (yang sudah dibeli). Tandai bintang di panel Watchlist dulu, lalu isi jumlah lembar & harga beli di sini."
+                />
             </Panel>
         );
     }

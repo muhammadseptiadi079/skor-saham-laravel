@@ -1,5 +1,6 @@
 import type { AccuracyResponse, ConfidenceCalibration } from '@/types';
 import Panel from './Panel';
+import EmptyState from './EmptyState';
 import { GaugeIcon } from '@/Components/Icons';
 
 const SUB_SCORE_LABELS: Record<string, string> = {
@@ -47,11 +48,17 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
     if (data.sampleSize === 0) {
         return (
             <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-slate-700" />}>
-                <p className="text-sm text-slate-500">
-                    Belum ada data yang cukup umur untuk dievaluasi. Skor "trading" baru dinilai
-                    setelah ~1 bulan (lewat <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">php artisan stocks:evaluate-backtest</code>),
-                    supaya ada cukup waktu untuk tahu apakah arah harganya benar.
-                </p>
+                <EmptyState
+                    icon={<GaugeIcon className="h-5 w-5" />}
+                    message={
+                        <>
+                            Belum ada data yang cukup umur untuk dievaluasi. Skor &quot;trading&quot; baru
+                            dinilai setelah ~1 bulan (lewat{' '}
+                            <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">php artisan stocks:evaluate-backtest</code>),
+                            supaya ada cukup waktu untuk tahu apakah arah harganya benar.
+                        </>
+                    }
+                />
                 <CalibrationNote calibration={data.confidenceCalibration} />
             </Panel>
         );

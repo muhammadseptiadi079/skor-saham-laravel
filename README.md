@@ -865,6 +865,30 @@ karena tiap tab memang sudah di-mount ulang setiap kali `activeTab`
 berubah (bukan cuma disembunyikan), jadi animasi "masuk"-nya otomatis
 terpicu ulang tiap pindah tab.
 
+## Round Kedua Puluh Dua: Ikon Aplikasi, Empty State, dan Indikator Loading
+
+Tiga kesenjangan visual yang ditemukan lewat audit singkat, dikerjakan
+sekaligus:
+
+- **Ikon aplikasi (PWA/home-screen) diganti** — sebelumnya kotak polos
+  warna teal-hijau (`public/icons/icon-192.png`/`icon-512.png`), sisa dari
+  awal proyek, sama sekali tidak nyambung dengan brand hitam-putih
+  sekarang. Diganti kotak hitam solid dengan huruf "S" putih tebal —
+  senada dengan wordmark. `manifest.json`-nya juga dibetulkan sekalian:
+  `background_color`/`theme_color` masih `#0f172a` (gelap, sisa tema
+  lama sebelum konversi ke tema terang), sekarang `#f8fafc` biar splash
+  screen PWA-nya tidak gelap tiba-tiba.
+- **Empty state dipercantik** — komponen baru `EmptyState` (ikon bulat +
+  pesan) menggantikan teks abu-abu polos di kondisi "belum ada data":
+  Watchlist, Riwayat, Screener, IPO, Portfolio, dan Akurasi Historis.
+  Sengaja cuma dipakai di empty-state utama tiap panel (bukan di setiap
+  pesan "tidak ada catatan" yang lebih kecil/kontekstual), supaya jadi
+  penanda visual yang berarti, bukan dekorasi yang diulang di mana-mana.
+- **Indikator loading saat menganalisis** — tombol "Analisis" dan banner
+  status di bawahnya sekarang menampilkan ikon spinner berputar
+  (`SpinnerIcon` baru + `animate-spin` dari Tailwind) selagi menunggu
+  hasil, bukan cuma teks "Menganalisis..." tanpa elemen visual apa pun.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan

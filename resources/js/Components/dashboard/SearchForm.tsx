@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import type { Market } from '@/types';
-import { SearchIcon } from '@/Components/Icons';
+import { SearchIcon, SpinnerIcon } from '@/Components/Icons';
 
 interface SearchFormProps {
     onSubmit: (ticker: string, market: Market) => void;
@@ -45,7 +45,7 @@ export default function SearchForm({ onSubmit, submitting }: SearchFormProps) {
                 disabled={submitting}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-neutral-800 to-black px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-black/30 transition-transform hover:scale-105 active:scale-95 disabled:opacity-60 disabled:hover:scale-100"
             >
-                <SearchIcon className="h-4 w-4" />
+                {submitting ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <SearchIcon className="h-4 w-4" />}
                 {submitting ? 'Menganalisis...' : 'Analisis'}
             </button>
         </form>

@@ -22,7 +22,7 @@ import ScreenerPanel from '@/Components/dashboard/ScreenerPanel';
 import IpoPanel from '@/Components/dashboard/IpoPanel';
 import LocalHistoryPanel from '@/Components/dashboard/LocalHistoryPanel';
 import AccuracyPanel from '@/Components/dashboard/AccuracyPanel';
-import { SearchIcon, StarIcon, ChartUpIcon, ClockIcon, BriefcaseIcon, GaugeIcon } from '@/Components/Icons';
+import { SearchIcon, StarIcon, ChartUpIcon, ClockIcon, BriefcaseIcon, GaugeIcon, SpinnerIcon } from '@/Components/Icons';
 import * as api from '@/lib/api';
 import { StockDB } from '@/lib/db';
 
@@ -193,12 +193,13 @@ export default function Dashboard() {
                 </p>
                 {status && (
                     <div
-                        className={`animate-fade-in-up mt-2 rounded-xl border px-3 py-2 text-sm ${
+                        className={`animate-fade-in-up mt-2 flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
                             status.error
                                 ? 'border-rose-300 bg-rose-50 text-rose-700'
                                 : 'border-slate-200 bg-slate-50 text-slate-700'
                         }`}
                     >
+                        {submitting && !status.error && <SpinnerIcon className="h-4 w-4 shrink-0 animate-spin" />}
                         {status.message}
                     </div>
                 )}

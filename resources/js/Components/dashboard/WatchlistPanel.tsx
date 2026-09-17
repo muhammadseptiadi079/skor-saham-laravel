@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Market, WatchlistItem } from '@/types';
 import { SECTORS, DEFAULT_SECTOR } from '@/lib/sectors';
 import Panel from './Panel';
+import EmptyState from './EmptyState';
 import { StarIcon, CloseIcon } from '@/Components/Icons';
 
 const STARTER_PACK_SECTORS = SECTORS.filter((s) => s !== DEFAULT_SECTOR);
@@ -88,7 +89,10 @@ export default function WatchlistPanel({
             </div>
 
             {items.length === 0 ? (
-                <p className="text-sm text-slate-500">Belum ada saham di watchlist.</p>
+                <EmptyState
+                    icon={<StarIcon className="h-5 w-5" />}
+                    message="Belum ada saham di watchlist. Cari & analisis satu saham dulu, atau pakai starter pack sektor di atas."
+                />
             ) : visibleItems.length === 0 ? (
                 <p className="text-sm text-slate-500">Belum ada yang ditandai favorit (yang sudah kamu beli).</p>
             ) : (

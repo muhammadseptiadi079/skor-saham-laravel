@@ -1,5 +1,6 @@
 import type { CachedAnalysis } from '@/types';
 import Panel from './Panel';
+import EmptyState from './EmptyState';
 import { ClockIcon } from '@/Components/Icons';
 
 interface LocalHistoryPanelProps {
@@ -11,7 +12,10 @@ export default function LocalHistoryPanel({ items, onSelect }: LocalHistoryPanel
     return (
         <Panel title="Riwayat (tersimpan di HP)" icon={<ClockIcon className="h-4 w-4 text-slate-700" />}>
             {items.length === 0 ? (
-                <p className="text-sm text-slate-500">Belum ada riwayat tersimpan di perangkat ini.</p>
+                <EmptyState
+                    icon={<ClockIcon className="h-5 w-5" />}
+                    message="Belum ada riwayat tersimpan di perangkat ini. Hasil analisis yang kamu buka akan muncul di sini."
+                />
             ) : (
                 <ul className="flex flex-col gap-2">
                     {items.map((item, i) => (

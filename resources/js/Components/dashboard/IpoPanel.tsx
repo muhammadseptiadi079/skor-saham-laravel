@@ -1,5 +1,6 @@
 import type { IpoListing } from '@/types';
 import Panel from './Panel';
+import EmptyState from './EmptyState';
 import { BriefcaseIcon } from '@/Components/Icons';
 
 function formatIpoDate(date: string | null): string {
@@ -13,11 +14,16 @@ export default function IpoPanel({ items }: { items: IpoListing[] }) {
     return (
         <Panel title="IPO Terbaru" icon={<BriefcaseIcon className="h-4 w-4 text-slate-700" />}>
             {items.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                    Belum ada data IPO. Jalankan{' '}
-                    <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">php artisan stocks:refresh-ipo</code>{' '}
-                    di server dulu.
-                </p>
+                <EmptyState
+                    icon={<BriefcaseIcon className="h-5 w-5" />}
+                    message={
+                        <>
+                            Belum ada data IPO. Jalankan{' '}
+                            <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">php artisan stocks:refresh-ipo</code>{' '}
+                            di server dulu.
+                        </>
+                    }
+                />
             ) : (
                 <ul className="flex flex-col gap-2">
                     {items.map((item, i) => (

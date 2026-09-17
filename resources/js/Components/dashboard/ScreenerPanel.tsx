@@ -1,5 +1,6 @@
 import type { Market, ScreenerResponse } from '@/types';
 import Panel from './Panel';
+import EmptyState from './EmptyState';
 import { ChartUpIcon } from '@/Components/Icons';
 import { textClassForScore } from '@/Components/charts/scoreColors';
 
@@ -37,11 +38,16 @@ export default function ScreenerPanel({ market, onMarketChange, response, onSele
                 bukan hasil hitung langsung saat ini juga.
             </p>
             {items.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                    Belum ada data screener. Jalankan{' '}
-                    <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">php artisan stocks:refresh-scores</code>{' '}
-                    di server dulu.
-                </p>
+                <EmptyState
+                    icon={<ChartUpIcon className="h-5 w-5" />}
+                    message={
+                        <>
+                            Belum ada data screener. Jalankan{' '}
+                            <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">php artisan stocks:refresh-scores</code>{' '}
+                            di server dulu.
+                        </>
+                    }
+                />
             ) : (
                 <ul className="flex flex-col gap-2">
                     {items.map((item, i) => (
