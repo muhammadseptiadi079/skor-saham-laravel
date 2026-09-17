@@ -235,7 +235,7 @@ export default function Dashboard() {
             </div>
 
             {activeTab === 'analisis' && (
-                <div className="flex flex-col gap-5">
+                <div className="animate-fade-in-up flex flex-col gap-5">
                     {result && (
                         <ResultPanel
                             result={result}
@@ -253,7 +253,7 @@ export default function Dashboard() {
             )}
 
             {activeTab === 'watchlist' && (
-                <div className="flex flex-col gap-5">
+                <div className="animate-fade-in-up flex flex-col gap-5">
                     <WatchlistPanel
                         items={watchlist}
                         onSelect={runAnalyze}
@@ -272,7 +272,7 @@ export default function Dashboard() {
             )}
 
             {activeTab === 'screener' && (
-                <div className="flex flex-col gap-5">
+                <div className="animate-fade-in-up flex flex-col gap-5">
                     <ScreenerPanel
                         market={screenerMarket}
                         onMarketChange={setScreenerMarket}
@@ -284,7 +284,7 @@ export default function Dashboard() {
             )}
 
             {activeTab === 'akurasi' && (
-                <div className="flex flex-col gap-5">
+                <div className="animate-fade-in-up flex flex-col gap-5">
                     <AccuracyPanel data={accuracy} />
                 </div>
             )}

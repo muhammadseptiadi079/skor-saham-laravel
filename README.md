@@ -853,6 +853,18 @@ jadul untuk tema monokrom yang tegas sekarang.
   berbeda yang bersaing.
 - Preview-nya dicek dulu lewat screenshot sebelum dipasang permanen.
 
+## Round Kedua Puluh Satu: Transisi Halus Saat Pindah Tab
+
+Sebelumnya pindah tab (Analisis/Watchlist/Screener/Akurasi) langsung
+"loncat" tanpa animasi. Sekarang tiap kali pindah tab, konten tab yang
+baru muncul dengan animasi `fadeInUp` (fade + geser naik sedikit) yang
+sama dengan animasi yang sudah dipakai di kartu hasil analisis — dipilih
+supaya konsisten dengan motion yang sudah ada, bukan menambah gaya
+animasi baru. Tidak butuh library animasi tambahan (masih CSS murni),
+karena tiap tab memang sudah di-mount ulang setiap kali `activeTab`
+berubah (bukan cuma disembunyikan), jadi animasi "masuk"-nya otomatis
+terpicu ulang tiap pindah tab.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
