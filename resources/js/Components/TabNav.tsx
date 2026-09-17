@@ -12,6 +12,32 @@ interface TabNavProps {
     onChange: (id: string) => void;
 }
 
+// The bottom bar's indicator is one continuous stroke spanning all tabs (not a separate bar per
+// tab), cresting into a "gelombang" (wave) right above whichever tab is active and flat
+// elsewhere — built as a single path so its shape (same command structure every time, only the
+// crest's x-position changes) can morph smoothly via the CSS `d` property instead of jumping.
+const WAVE_VIEW_WIDTH = 100;
+const WAVE_VIEW_HEIGHT = 22;
+const WAVE_BASELINE_Y = 17;
+const WAVE_CREST_Y = 3;
+const WAVE_SHOULDER_SPREAD = 12; // how far the crest's slope reaches out before flattening
+
+function waveIndicatorPath(activeIndex: number, tabCount: number): string {
+    const crestX = ((activeIndex + 0.5) / tabCount) * WAVE_VIEW_WIDTH;
+    const leftShoulder = Math.max(0, crestX - WAVE_SHOULDER_SPREAD);
+    const rightShoulder = Math.min(WAVE_VIEW_WIDTH, crestX + WAVE_SHOULDER_SPREAD);
+    const leftControl = crestX - WAVE_SHOULDER_SPREAD / 2;
+    const rightControl = crestX + WAVE_SHOULDER_SPREAD / 2;
+
+    return (
+        `M 0,${WAVE_BASELINE_Y} ` +
+        `L ${leftShoulder},${WAVE_BASELINE_Y} ` +
+        `C ${leftControl},${WAVE_BASELINE_Y} ${leftControl},${WAVE_CREST_Y} ${crestX},${WAVE_CREST_Y} ` +
+        `C ${rightControl},${WAVE_CREST_Y} ${rightControl},${WAVE_BASELINE_Y} ${rightShoulder},${WAVE_BASELINE_Y} ` +
+        `L ${WAVE_VIEW_WIDTH},${WAVE_BASELINE_Y}`
+    );
+}
+
 // Rendered twice — a horizontal row under the header for wide screens, a fixed bottom bar for
 // phones — same tabs/state, just different chrome per screen size instead of one layout
 // awkwardly stretched to fit both. Only one of the two is ever visible at a given width.
@@ -46,14 +72,26 @@ export default function TabNav({ tabs, active, onChange }: TabNavProps) {
                 style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
                 <div className="relative flex">
-                    {/* Full-width-per-tab indicator that slides to the active tab with a springy
-                        overshoot (same easing as animate-pop-in) instead of just recoloring text —
-                        the "gelombang" (wave) motion the bottom bar was missing. */}
-                    <span
+                    {/* One continuous line across all tabs that crests into a wave right above the
+                        active tab and flattens elsewhere — morphs smoothly to the new tab's
+                        position via the CSS `d` property (path() notation) rather than jumping. */}
+                    <svg
                         aria-hidden
-                        className="absolute top-0 h-[3px] rounded-full bg-black transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                        style={{ width: `${100 / tabs.length}%`, transform: `translateX(${activeIndex * 100}%)` }}
-                    />
+                        viewBox={`0 0 ${WAVE_VIEW_WIDTH} ${WAVE_VIEW_HEIGHT}`}
+                        preserveAspectRatio="none"
+                        className="pointer-events-none absolute inset-x-0 top-0 h-5 w-full"
+                    >
+                        <path
+                            fill="none"
+                            stroke="#000"
+                            strokeWidth={2.5}
+                            strokeLinecap="round"
+                            style={{
+                                d: `path("${waveIndicatorPath(activeIndex, tabs.length)}")`,
+                                transition: 'd 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                            }}
+                        />
+                    </svg>
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}

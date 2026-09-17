@@ -1002,27 +1002,33 @@ ditandai favorit langsung dari situ tanpa analisis satu-satu.
   name)` supaya dipakai bersama oleh kartu Trading di hasil analisis
   dan baris-baris Screener ini.
 
-## Round Kedua Puluh Tujuh: Indikator Tab Bawah Meluncur dengan Efek Pegas
+## Round Kedua Puluh Tujuh: Garis Gelombang yang Menyambung 4 Tab
 
 Tab bar di HP (bottom nav) sebelumnya cuma ganti warna/tebal teks pas
-pindah tab, tidak ada elemen visual yang bergerak. Sekarang ada garis
-indikator selebar penuh tiap tab, yang meluncur ke posisi tab aktif
-tiap kali diklik:
+pindah tab, tidak ada elemen visual yang bergerak. Percobaan pertama
+(bar hitam terpisah per tab yang meluncur) bukan yang dimaksud — yang
+benar: **satu garis menyambung dari ujung ke ujung melewati keempat
+tab**, melengkung naik membentuk gelombang persis di atas tab yang
+aktif, lalu meluncur pindah kalau tab lain diklik.
 
-- Garis (`<span>` hitam setinggi 3px) diposisikan lewat satu elemen
-  `absolute` yang di-geser pakai `transform: translateX()`, bukan
-  digambar ulang per tab — jadi transisinya benar-benar meluncur dari
-  posisi lama ke posisi baru, bukan cuma muncul-hilang.
-- Easing-nya sengaja pakai kurva pegas yang sama dengan animasi
-  `animate-pop-in` yang sudah dipakai di tempat lain (`cubic-bezier(0.34,
-  1.56, 0.64, 1)`) — sedikit "overshoot" lalu pantul balik ke posisi
-  pas, itu yang bikin efeknya kerasa seperti gelombang/pegas, bukan
-  geser lurus kaku.
+- **Satu `<path>` SVG, bukan elemen terpisah per tab** — jalur digambar
+  dari x=0 sampai x=100% dengan satu lengkungan (dua kurva Bezier) yang
+  puncaknya diposisikan di tengah tab yang aktif
+  (`waveIndicatorPath()`), datar di sisa jalurnya. Struktur perintah
+  path-nya selalu sama (M, L, C, C, L) di setiap posisi aktif — cuma
+  angka koordinat puncaknya yang berubah — supaya bisa dianimasikan
+  mulus.
+- **Transisinya lewat properti CSS `d`** (bukan `transform`) memakai
+  notasi `path("...")`, dengan `transition: d 400ms` — browser modern
+  meng-interpolasi bentuk path lama ke path baru secara halus selama
+  strukturnya sama, jadi gelombangnya benar-benar "mengalir" pindah
+  posisi, bukan loncat atau bar terpisah yang geser.
+- Easing tetap pakai kurva pegas yang sama dengan `animate-pop-in`
+  (`cubic-bezier(0.34, 1.56, 0.64, 1)`) supaya gelombangnya kerasa
+  sedikit memantul, bukan kaku.
 - Cuma diterapkan di tab bar bawah (khusus HP) — tab bar horizontal di
   layar lebar (laptop) tetap pakai garis bawah statis seperti
-  sebelumnya, karena lebar tiap tab di situ tidak seragam (mengikuti
-  panjang label), jadi menghitung posisi geser yang presisi butuh
-  pengukuran elemen yang lebih rumit dan belum diminta.
+  sebelumnya, karena lebar tiap tab di situ tidak seragam.
 
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
