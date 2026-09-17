@@ -33,13 +33,13 @@ export default function HistoryLineChart({ entries }: { entries: HistoryEntry[] 
         <svg viewBox={`0 0 ${W} ${H}`} className="animate-fade-in-up h-28 w-full">
             <defs>
                 <linearGradient id="history-fill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#0a0a0a" stopOpacity={0.18} />
+                    <stop offset="100%" stopColor="#0a0a0a" stopOpacity={0} />
                 </linearGradient>
             </defs>
             <line x1={PAD_X} y1={zeroY} x2={W - PAD_X} y2={zeroY} stroke="#cbd5e1" strokeDasharray="4 4" />
             <path d={areaPath} fill="url(#history-fill)" stroke="none" />
-            <path d={linePath} fill="none" stroke="#38bdf8" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            <path d={linePath} fill="none" stroke="#0a0a0a" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
             {coords.map((c) => (
                 <circle key={c.entry.id} cx={c.x} cy={c.y} r={3} fill={colorForScore(c.entry.trading_score)}>
                     <title>

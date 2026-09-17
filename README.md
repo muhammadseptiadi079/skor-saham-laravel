@@ -889,6 +889,24 @@ sekaligus:
   (`SpinnerIcon` baru + `animate-spin` dari Tailwind) selagi menunggu
   hasil, bukan cuma teks "Menganalisis..." tanpa elemen visual apa pun.
 
+## Round Kedua Puluh Tiga: Grafik Tren & Favicon Ikut Dibenahi
+
+Audit visual lanjutan menemukan dua sisa yang kelewatan dari konversi ke
+tema monokrom:
+
+- **`HistoryLineChart` (grafik tren skor trading) masih biru langit**
+  (`#38bdf8`) — satu-satunya elemen di seluruh aplikasi yang masih pakai
+  warna dari tema warna-warni lama, "nyasar" di tengah tampilan yang
+  sekarang serba hitam-putih. Garis dan area gradasinya diganti hitam
+  (`#0a0a0a`); titik-titik datanya tetap merah/kuning/hijau sesuai skor
+  (itu bukan dekorasi, sama seperti prinsip yang sudah dipakai di
+  `ScoreBar`/`SubScoreBarChart`).
+- **`public/favicon.ico` ternyata file kosong (0 byte)** sisa dari awal
+  proyek — dibuatkan ulang (multi-resolusi 16/32/48px) dari ikon PWA yang
+  baru, jadi kalau ada browser yang minta `/favicon.ico` langsung
+  (sebagian browser tetap melakukan ini meski sudah ada `<link
+  rel="icon">`), tidak dapat file kosong/rusak.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
