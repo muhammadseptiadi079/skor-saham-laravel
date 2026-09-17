@@ -1005,19 +1005,26 @@ ditandai favorit langsung dari situ tanpa analisis satu-satu.
 ## Round Kedua Puluh Tujuh: Garis Gelombang yang Menyambung 4 Tab
 
 Tab bar di HP (bottom nav) sebelumnya cuma ganti warna/tebal teks pas
-pindah tab, tidak ada elemen visual yang bergerak. Percobaan pertama
-(bar hitam terpisah per tab yang meluncur) bukan yang dimaksud — yang
-benar: **satu garis menyambung dari ujung ke ujung melewati keempat
-tab**, melengkung naik membentuk gelombang persis di atas tab yang
-aktif, lalu meluncur pindah kalau tab lain diklik.
+pindah tab, tidak ada elemen visual yang bergerak. Dua percobaan
+sebelumnya (bar hitam terpisah per tab yang meluncur, lalu satu garis
+yang melengkung **di atas** ikon) bukan yang dimaksud — referensi
+gambar yang dikirim menunjukkan garisnya nempel **di bawah**
+ikon/label (bukan melayang di atasnya), dan cuma melengkung turun
+membentuk gelombang di bawah tab yang lagi aktif. Bentuk finalnya:
+**satu garis menyambung dari ujung ke ujung melewati keempat tab, rata
+di bawah baris ikon/label**, dan mencekung turun tepat di bawah tab
+yang aktif, lalu meluncur pindah kalau tab lain diklik. Warnanya tetap
+hitam pekat (`#000`) sesuai tema monokrom aplikasi, bukan warna merah
+seperti di gambar referensi.
 
-- **Satu `<path>` SVG, bukan elemen terpisah per tab** — jalur digambar
-  dari x=0 sampai x=100% dengan satu lengkungan (dua kurva Bezier) yang
-  puncaknya diposisikan di tengah tab yang aktif
-  (`waveIndicatorPath()`), datar di sisa jalurnya. Struktur perintah
-  path-nya selalu sama (M, L, C, C, L) di setiap posisi aktif — cuma
-  angka koordinat puncaknya yang berubah — supaya bisa dianimasikan
-  mulus.
+- **Satu `<path>` SVG, bukan elemen terpisah per tab** — diletakkan
+  sebagai strip tipis di bawah baris tombol (bukan lagi menumpuk di
+  atasnya), jalur digambar dari x=0 sampai x=100% dengan satu lengkungan
+  (dua kurva Bezier) yang mencekung turun di tengah tab yang aktif
+  (`waveIndicatorPath()`), datar dekat baris tombol di sisa jalurnya.
+  Struktur perintah path-nya selalu sama (M, L, C, C, L) di setiap
+  posisi aktif — cuma angka koordinat cekungannya yang berubah — supaya
+  bisa dianimasikan mulus.
 - **Transisinya lewat properti CSS `d`** (bukan `transform`) memakai
   notasi `path("...")`, dengan `transition: d 400ms` — browser modern
   meng-interpolasi bentuk path lama ke path baru secara halus selama

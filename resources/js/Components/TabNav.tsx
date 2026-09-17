@@ -13,13 +13,14 @@ interface TabNavProps {
 }
 
 // The bottom bar's indicator is one continuous stroke spanning all tabs (not a separate bar per
-// tab), cresting into a "gelombang" (wave) right above whichever tab is active and flat
-// elsewhere — built as a single path so its shape (same command structure every time, only the
-// crest's x-position changes) can morph smoothly via the CSS `d` property instead of jumping.
+// tab), sitting flush under the icons/labels and dipping down into a "gelombang" (wave) right
+// below whichever tab is active — built as a single path so its shape (same command structure
+// every time, only the crest's x-position changes) can morph smoothly via the CSS `d` property
+// instead of jumping.
 const WAVE_VIEW_WIDTH = 100;
-const WAVE_VIEW_HEIGHT = 22;
-const WAVE_BASELINE_Y = 17;
-const WAVE_CREST_Y = 3;
+const WAVE_VIEW_HEIGHT = 16;
+const WAVE_BASELINE_Y = 3;
+const WAVE_CREST_Y = 13;
 const WAVE_SHOULDER_SPREAD = 12; // how far the crest's slope reaches out before flattening
 
 function waveIndicatorPath(activeIndex: number, tabCount: number): string {
@@ -71,27 +72,7 @@ export default function TabNav({ tabs, active, onChange }: TabNavProps) {
                 className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur-lg sm:hidden"
                 style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
-                <div className="relative flex">
-                    {/* One continuous line across all tabs that crests into a wave right above the
-                        active tab and flattens elsewhere — morphs smoothly to the new tab's
-                        position via the CSS `d` property (path() notation) rather than jumping. */}
-                    <svg
-                        aria-hidden
-                        viewBox={`0 0 ${WAVE_VIEW_WIDTH} ${WAVE_VIEW_HEIGHT}`}
-                        preserveAspectRatio="none"
-                        className="pointer-events-none absolute inset-x-0 top-0 h-5 w-full"
-                    >
-                        <path
-                            fill="none"
-                            stroke="#000"
-                            strokeWidth={2.5}
-                            strokeLinecap="round"
-                            style={{
-                                d: `path("${waveIndicatorPath(activeIndex, tabs.length)}")`,
-                                transition: 'd 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                            }}
-                        />
-                    </svg>
+                <div className="flex">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
@@ -106,6 +87,27 @@ export default function TabNav({ tabs, active, onChange }: TabNavProps) {
                         </button>
                     ))}
                 </div>
+                {/* One continuous line across all tabs, sitting flush under the icons/labels and
+                    dipping down into a wave right below the active tab — morphs smoothly to the
+                    new tab's position via the CSS `d` property (path() notation) rather than
+                    jumping. */}
+                <svg
+                    aria-hidden
+                    viewBox={`0 0 ${WAVE_VIEW_WIDTH} ${WAVE_VIEW_HEIGHT}`}
+                    preserveAspectRatio="none"
+                    className="pointer-events-none block h-4 w-full"
+                >
+                    <path
+                        fill="none"
+                        stroke="#000"
+                        strokeWidth={2.5}
+                        strokeLinecap="round"
+                        style={{
+                            d: `path("${waveIndicatorPath(activeIndex, tabs.length)}")`,
+                            transition: 'd 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        }}
+                    />
+                </svg>
             </nav>
         </>
     );
