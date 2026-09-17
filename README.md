@@ -949,6 +949,27 @@ satu pun klaim/prediksi baru.
   ada dasarnya, konsisten dengan filosofi "jangan pura-pura tahu" yang
   sudah dipakai di `confidenceCalibrationReport()`.
 
+## Round Kedua Puluh Lima: Tombol "Tandai Favorit" di Kartu Trading
+
+Sebelumnya menandai bintang butuh dua langkah: tambah ke watchlist dulu
+dari hasil analisis, lalu pindah ke tab Watchlist buat cari barisnya dan
+klik ikon bintangnya di sana. Sekarang ada jalan pintas langsung di kartu
+skor "Trading":
+
+- **Persentase histori ditampilkan di kartu Trading** — pakai angka yang
+  sama dengan yang sudah dihitung untuk kartu "Riwayat Label" di bawahnya
+  (`accuracy.byLabel`, digerbang sampel minimal 10), bukan angka baru —
+  cuma dipindahkan lebih dekat ke tombol aksinya.
+- **Tombol "Tandai Favorit"** — satu klik langsung menambahkan ke
+  watchlist (kalau belum ada) *dan* menandainya favorit/bintang sekaligus
+  (`Dashboard::handleQuickFavoriteTrading`), lewat `addToWatchlist()`
+  (idempotent — aman dipanggil walau sudah ada) diikuti
+  `updateWatchlistItem(id, { is_favorite: true })`. Begitu sudah favorit,
+  tombolnya berubah jadi "Sudah ditandai" dan non-aktif.
+- Tombol "Tambah ke watchlist" yang sudah ada di bagian bawah (dengan
+  pilihan sektor) tidak diubah — tetap ada untuk yang mau pilih sektor
+  dulu sebelum menambah tanpa langsung menandai favorit.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan

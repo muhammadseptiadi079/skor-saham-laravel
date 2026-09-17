@@ -137,6 +137,18 @@ export default function Dashboard() {
         refreshWatchlist();
     }
 
+    // Shortcut for "this trading call looks good, follow it" — adds to watchlist (or reuses the
+    // existing entry, addToWatchlist is idempotent) and marks it favorite in one click, instead of
+    // the normal two-step "tambah ke watchlist" then go star it from the Watchlist tab.
+    async function handleQuickFavoriteTrading() {
+        if (!result) return;
+        const item = await api.addToWatchlist(result.ticker, result.market, result.name);
+        if (!item.is_favorite) {
+            await api.updateWatchlistItem(item.id, { is_favorite: true });
+        }
+        refreshWatchlist();
+    }
+
     async function handleRemoveWatchlist(id: number) {
         await api.removeFromWatchlist(id);
         refreshWatchlist();
@@ -179,9 +191,11 @@ export default function Dashboard() {
         showResult(cached.analysis, cached.savedAt);
     }
 
-    const inWatchlist = result
-        ? watchlist.some((w) => w.ticker === result.ticker && w.market === result.market)
-        : false;
+    const currentWatchlistItem = result
+        ? watchlist.find((w) => w.ticker === result.ticker && w.market === result.market)
+        : undefined;
+    const inWatchlist = !!currentWatchlistItem;
+    const isFavorite = currentWatchlistItem?.is_favorite ?? false;
 
     return (
         <AppLayout online={online} tabs={TABS} activeTab={activeTab} onTabChange={(id) => setActiveTab(id as TabId)}>
@@ -242,7 +256,9 @@ export default function Dashboard() {
                             result={result}
                             savedAt={resultSavedAt}
                             inWatchlist={inWatchlist}
+                            isFavorite={isFavorite}
                             onAddWatchlist={handleAddWatchlist}
+                            onQuickFavoriteTrading={handleQuickFavoriteTrading}
                             trendEntries={resultTrend}
                             accuracy={accuracy}
                         />

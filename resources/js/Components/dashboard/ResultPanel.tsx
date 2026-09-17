@@ -56,7 +56,9 @@ interface ResultPanelProps {
     result: AnalysisResult;
     savedAt: number | null;
     inWatchlist: boolean;
+    isFavorite: boolean;
     onAddWatchlist: (sector: string) => void;
+    onQuickFavoriteTrading: () => void | Promise<void>;
     trendEntries: HistoryEntry[];
     accuracy: AccuracyResponse | null;
 }
@@ -91,8 +93,18 @@ function subScoreAccuracyNote(subScoreKey: string, accuracy: AccuracyResponse | 
     return entry ? `Riwayat akurasi arah: ${entry.directionalAccuracy}% (${entry.sampleSize} sampel)` : undefined;
 }
 
-export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchlist, trendEntries, accuracy }: ResultPanelProps) {
+export default function ResultPanel({
+    result,
+    savedAt,
+    inWatchlist,
+    isFavorite,
+    onAddWatchlist,
+    onQuickFavoriteTrading,
+    trendEntries,
+    accuracy,
+}: ResultPanelProps) {
     const [sector, setSector] = useState<string>(DEFAULT_SECTOR);
+    const [markingFavorite, setMarkingFavorite] = useState(false);
     const when = new Date(savedAt || result.generatedAt);
     const isBearish = (result.trading.score ?? 0) <= -0.5 || (result.longterm.score ?? 0) <= -0.5;
     const historicalReturn =
@@ -158,6 +170,33 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                             Keyakinan: {result.trading.confidence}
                         </p>
                     )}
+                    {historicalReturn && (
+                        <p
+                            className={`mt-1 text-center text-xs font-bold ${movementColorClass(historicalReturn.avgForwardReturnPct)}`}
+                            title={`Rata-rata histori label "${historicalReturn.label}" dari ${historicalReturn.sampleSize} sampel — bukan prediksi untuk saham ini secara spesifik.`}
+                        >
+                            Estimasi historis {pctValue(historicalReturn.avgForwardReturnPct)}
+                        </p>
+                    )}
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            setMarkingFavorite(true);
+                            try {
+                                await onQuickFavoriteTrading();
+                            } finally {
+                                setMarkingFavorite(false);
+                            }
+                        }}
+                        disabled={isFavorite || markingFavorite}
+                        className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-bold transition-transform active:scale-95 disabled:active:scale-100 ${
+                            isFavorite ? 'bg-slate-100 text-slate-400' : 'bg-black text-white hover:scale-[1.02]'
+                        } disabled:opacity-70`}
+                        title="Tambahkan ke watchlist dan langsung tandai favorit (bintang) dalam satu klik"
+                    >
+                        <StarIcon filled className="h-3.5 w-3.5" />
+                        {isFavorite ? 'Sudah ditandai' : markingFavorite ? 'Menandai...' : 'Tandai Favorit'}
+                    </button>
                 </GlassCard>
             </div>
 
