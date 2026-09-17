@@ -115,6 +115,11 @@ export interface ScreenerItem {
     longterm_score?: number | null;
     longterm_label?: string | null;
     generated_at: string;
+    /** User-assigned watchlist sector, a SectorStarterPacks fallback guess, or "Lainnya". */
+    sector: string;
+    /** Historical average forward return for this item's label (trading horizon only, gated by
+     * sample size on the backend) — null when there isn't enough graded history to say anything. */
+    avgForwardReturnPct: number | null;
 }
 
 export interface ScreenerResponse {

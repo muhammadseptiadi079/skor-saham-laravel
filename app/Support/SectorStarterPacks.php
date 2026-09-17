@@ -106,6 +106,23 @@ class SectorStarterPacks
         return array_keys(self::PACKS);
     }
 
+    // Reverse lookup used by the screener to group a ticker the user hasn't watchlisted (so it has
+    // no user-assigned sector yet) — best-effort only, since PACKS only covers well-known IDX
+    // names; anything not found here falls back to Sectors::DEFAULT at the call site.
+    public static function sectorForTicker(string $ticker): ?string
+    {
+        $ticker = strtoupper($ticker);
+        foreach (self::PACKS as $sector => $picks) {
+            foreach ($picks as $pick) {
+                if ($pick['ticker'] === $ticker) {
+                    return $sector;
+                }
+            }
+        }
+
+        return null;
+    }
+
     /** @return array<int, array{ticker: string, name: string}> */
     public static function forSector(string $sector): array
     {

@@ -139,10 +139,10 @@ export default function Dashboard() {
 
     // Shortcut for "this trading call looks good, follow it" — adds to watchlist (or reuses the
     // existing entry, addToWatchlist is idempotent) and marks it favorite in one click, instead of
-    // the normal two-step "tambah ke watchlist" then go star it from the Watchlist tab.
-    async function handleQuickFavoriteTrading() {
-        if (!result) return;
-        const item = await api.addToWatchlist(result.ticker, result.market, result.name);
+    // the normal two-step "tambah ke watchlist" then go star it from the Watchlist tab. Shared by
+    // the Trading card in ResultPanel and the per-row star in the Screener's trading list.
+    async function handleQuickFavorite(ticker: string, market: Market, name: string | null) {
+        const item = await api.addToWatchlist(ticker, market, name);
         if (!item.is_favorite) {
             await api.updateWatchlistItem(item.id, { is_favorite: true });
         }
@@ -200,7 +200,7 @@ export default function Dashboard() {
     return (
         <AppLayout online={online} tabs={TABS} activeTab={activeTab} onTabChange={(id) => setActiveTab(id as TabId)}>
             <div className="mb-5">
-                <SearchForm onSubmit={runAnalyze} submitting={submitting} />
+                <SearchForm onSubmit={runAnalyze} submitting={submitting} onShowTrading={() => setActiveTab('screener')} />
                 <p className="mt-2 text-xs text-slate-500">
                     Alat bantu analisis dari berita, laporan keuangan, dan tren volume —{' '}
                     <strong className="text-slate-600">bukan jaminan prediksi harga.</strong>
@@ -258,7 +258,7 @@ export default function Dashboard() {
                             inWatchlist={inWatchlist}
                             isFavorite={isFavorite}
                             onAddWatchlist={handleAddWatchlist}
-                            onQuickFavoriteTrading={handleQuickFavoriteTrading}
+                            onQuickFavoriteTrading={() => handleQuickFavorite(result.ticker, result.market, result.name)}
                             trendEntries={resultTrend}
                             accuracy={accuracy}
                         />
@@ -295,6 +295,8 @@ export default function Dashboard() {
                         onMarketChange={setScreenerMarket}
                         response={screener}
                         onSelect={runAnalyze}
+                        watchlist={watchlist}
+                        onQuickFavorite={handleQuickFavorite}
                     />
                     <IpoPanel items={ipoListings} />
                 </div>

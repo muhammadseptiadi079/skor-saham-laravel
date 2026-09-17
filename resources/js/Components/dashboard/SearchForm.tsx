@@ -1,13 +1,16 @@
 import { useState, type FormEvent } from 'react';
 import type { Market } from '@/types';
-import { SearchIcon, SpinnerIcon } from '@/Components/Icons';
+import { SearchIcon, SpinnerIcon, ChartUpIcon } from '@/Components/Icons';
 
 interface SearchFormProps {
     onSubmit: (ticker: string, market: Market) => void;
     submitting: boolean;
+    /** Jumps to the Screener tab's trading list — a shortcut for "show me candidates with an
+     * estimated % gain, grouped by sector" without analyzing one ticker at a time. */
+    onShowTrading: () => void;
 }
 
-export default function SearchForm({ onSubmit, submitting }: SearchFormProps) {
+export default function SearchForm({ onSubmit, submitting, onShowTrading }: SearchFormProps) {
     const [ticker, setTicker] = useState('');
     const [market, setMarket] = useState<Market>('idx');
 
@@ -47,6 +50,15 @@ export default function SearchForm({ onSubmit, submitting }: SearchFormProps) {
             >
                 {submitting ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <SearchIcon className="h-4 w-4" />}
                 {submitting ? 'Menganalisis...' : 'Analisis'}
+            </button>
+            <button
+                type="button"
+                onClick={onShowTrading}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-800 transition-transform hover:scale-105 hover:border-slate-400 active:scale-95"
+                title="Lihat daftar saham per sektor dengan perkiraan persentase kenaikan trading, tandai favorit langsung dari situ"
+            >
+                <ChartUpIcon className="h-4 w-4" />
+                Trading
             </button>
         </form>
     );

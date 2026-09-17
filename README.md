@@ -970,6 +970,38 @@ skor "Trading":
   pilihan sektor) tidak diubah — tetap ada untuk yang mau pilih sektor
   dulu sebelum menambah tanpa langsung menandai favorit.
 
+## Round Kedua Puluh Enam: Tombol "Trading" — Screener per Sektor + Bintang Langsung
+
+Permintaan lanjutan: bukan di dalam hasil analisis satu saham, tapi ada
+tombol terpisah di sebelah "Analisis" yang langsung menunjukkan daftar
+saham per sektor dengan persentase kenaikan trading-nya, dan bisa
+ditandai favorit langsung dari situ tanpa analisis satu-satu.
+
+- **Tombol "Trading" baru di sebelah tombol "Analisis"** (`SearchForm`)
+  — klik langsung pindah ke tab Screener, yang defaultnya memang sudah
+  horizon "trading".
+- **Screener sekarang dikelompokkan per sektor** — sebelumnya daftar
+  flat tanpa pengelompokan. `ScreenerController` menentukan sektor tiap
+  saham dari watchlist kalau sudah diklasifikasikan user, kalau belum
+  fallback ke `SectorStarterPacks::sectorForTicker()` (lookup terbalik
+  baru — cross-reference ke daftar ticker per sektor yang sudah ada
+  buat fitur starter pack), baru default ke "Lainnya" kalau memang tidak
+  dikenali.
+- **Persentase kenaikan trading muncul langsung di samping tiap saham**
+  — rata-rata pergerakan historis untuk label yang sama (sama seperti
+  yang dipakai di kartu Trading hasil analisis dan kartu "Riwayat
+  Label"), dihitung sekali per label lewat `avgReturnByLabel()`
+  (bukan per-saham — cuma ada 5 kemungkinan label). Cuma dipasang untuk
+  horizon "trading" (backtest cuma pernah menilai label trading, tidak
+  pernah longterm), dan digerbang sampel minimal 10 sama seperti tempat
+  lain.
+- **Bintang langsung di tiap baris** — klik sekali langsung menambah ke
+  watchlist + menandai favorit, tanpa perlu klik saham itu dulu untuk
+  membukanya. `Dashboard::handleQuickFavoriteTrading` dari round
+  sebelumnya digeneralisasi jadi `handleQuickFavorite(ticker, market,
+  name)` supaya dipakai bersama oleh kartu Trading di hasil analisis
+  dan baris-baris Screener ini.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
