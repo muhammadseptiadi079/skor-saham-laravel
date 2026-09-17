@@ -1052,20 +1052,25 @@ monokrom (hitam-putih, bukan merah).
 Percobaan pertama meniru bentuk pita Hot Wheels apa adanya (tulisan
 dipaksa melengkung ikut jalur `<textPath>` SVG) hasilnya malah
 terdistorsi jadi tidak kebaca — kelihatan seperti "cacing", bukan
-tulisan "JULAK SAHAM". Diganti total ke pendekatan yang lebih aman:
-**tulisannya dibuat lurus dan tebal (tidak pernah dibengkokkan)**,
-supaya dijamin selalu kebaca jelas di ukuran berapa pun, ditambah
-aksen api kecil di kiri dan garis gelombang tipis di bawah tulisan
-untuk kesan dinamis ala referensinya — tanpa mengorbankan
-keterbacaan.
+tulisan "JULAK SAHAM". Percobaan kedua (teks lurus miring + garis
+gelombang tipis di bawahnya) sudah kebaca, tapi user minta fontnya
+diganti lagi supaya bergaya **layar LED dot-matrix** (referensi:
+tulisan "Every Designer Needs" bergaya lampu LED merah kotak-kotak) —
+garis bawahnya juga diminta dihapus.
 
-- **`Wordmark.tsx` (ditulis ulang)** — `<span>` teks biasa (`font-display`,
-  `font-black`, miring/`italic`) untuk "JULAK SAHAM", bukan `<textPath>`
-  yang membengkokkan huruf. Ikon api di kiri cuma satu `<path>` SVG
-  terisi (bentuk tetesan api sederhana), dan garis gelombang tipis di
-  bawah tulisan pakai satu `<path>` yang di-stroke — dua elemen dekoratif
-  ini yang bawa kesan "mengalir", bukan teksnya sendiri. Warnanya pakai
-  `currentColor`, ikut warna teks pembungkusnya.
+- **Font diganti ke Silkscreen** (Google Fonts) — font pixel/bitmap
+  asli yang huruf-hurufnya memang dibangun dari grid kotak kasar
+  (bukan font biasa yang di-skew/di-trik lewat CSS supaya kelihatan
+  kotak-kotak), jadi hasilnya benar-benar bergaya LED/8-bit dan tetap
+  dijamin kebaca karena bentuk hurufnya sudah didesain untuk itu.
+  Sempat dicoba font "Doto" (katanya font titik/dot-matrix) duluan,
+  tapi ternyata instance statis yang disajikan Google Fonts untuk
+  bobot itu keluar sebagai sans-serif solid biasa, bukan bertitik —
+  makanya diganti ke Silkscreen yang sudah terbukti kotak-kotak lewat
+  screenshot.
+- **Garis gelombang di bawah tulisan dihapus** sesuai permintaan —
+  `Wordmark.tsx` sekarang cuma ikon api + teks, satu baris flex biasa,
+  tanpa elemen dekoratif tambahan di bawahnya.
 - **Class `.text-holes` (tekstur lubang-lubang dari Round 17) dihapus**
   — sudah tidak dipakai lagi karena wordmark sekarang grafis penuh,
   bukan teks biasa yang di-mask.
