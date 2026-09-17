@@ -89,6 +89,9 @@ class AnalyzeControllerTest extends TestCase
             'longterm' => ['score', 'label'],
             'trading' => ['score', 'label'],
             'horizonAlignment' => ['aligned', 'note'],
+            'subScoreDivergence',
+            'staleDataWarning',
+            'marketRegime',
             'priceTarget',
             'disclaimer',
         ]);

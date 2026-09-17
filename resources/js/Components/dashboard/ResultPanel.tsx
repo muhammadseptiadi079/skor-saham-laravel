@@ -44,6 +44,14 @@ function movementColorClass(v: number): string {
     return v >= 0 ? 'text-emerald-600' : 'text-rose-600';
 }
 
+// Mirrors AccuracyController::REGIME_LABELS on the backend — used to look up the current
+// market regime's row in accuracy.byMarketRegime.
+const REGIME_LABELS: Record<string, string> = {
+    bull: 'Pasar Naik',
+    bear: 'Pasar Turun',
+    sideways: 'Pasar Sideways',
+};
+
 interface ResultPanelProps {
     result: AnalysisResult;
     savedAt: number | null;
@@ -75,12 +83,25 @@ function NoteList({ notes, delayBase = 0 }: { notes: string[]; delayBase?: numbe
 // backtest-derived reports (see SubScoreAccuracyService on the backend).
 const MIN_SAMPLE_FOR_HISTORICAL_NOTE = 10;
 
+function subScoreAccuracyNote(subScoreKey: string, accuracy: AccuracyResponse | null): string | undefined {
+    const entry = accuracy?.subScoreAccuracy.find(
+        (row) => row.subScore === subScoreKey && row.sampleSize >= MIN_SAMPLE_FOR_HISTORICAL_NOTE && row.directionalAccuracy !== null
+    );
+
+    return entry ? `Riwayat akurasi arah: ${entry.directionalAccuracy}% (${entry.sampleSize} sampel)` : undefined;
+}
+
 export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchlist, trendEntries, accuracy }: ResultPanelProps) {
     const [sector, setSector] = useState<string>(DEFAULT_SECTOR);
     const when = new Date(savedAt || result.generatedAt);
     const isBearish = (result.trading.score ?? 0) <= -0.5 || (result.longterm.score ?? 0) <= -0.5;
     const historicalReturn =
         accuracy?.byLabel.find((row) => row.label === result.trading.label && row.sampleSize >= MIN_SAMPLE_FOR_HISTORICAL_NOTE) ?? null;
+    const regimeAccuracy = result.marketRegime
+        ? (accuracy?.byMarketRegime.find(
+              (row) => row.label === REGIME_LABELS[result.marketRegime as string] && row.sampleSize >= MIN_SAMPLE_FOR_HISTORICAL_NOTE
+          ) ?? null)
+        : null;
 
     return (
         <GlassCard className="animate-fade-in-up p-5">
@@ -143,6 +164,26 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
             {result.horizonAlignment.aligned === false && result.horizonAlignment.note && (
                 <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                     {result.horizonAlignment.note}
+                </div>
+            )}
+
+            {result.subScoreDivergence && (
+                <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    {result.subScoreDivergence}
+                </div>
+            )}
+
+            {result.staleDataWarning && (
+                <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    {result.staleDataWarning}
+                </div>
+            )}
+
+            {result.marketRegime && regimeAccuracy && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    Kondisi pasar saat ini mirip &quot;{REGIME_LABELS[result.marketRegime]}&quot; — secara historis, skor
+                    trading aplikasi ini akurat {regimeAccuracy.accuracy}% dari {regimeAccuracy.sampleSize} sampel dalam
+                    kondisi pasar seperti ini (bukan khusus untuk saham ini).
                 </div>
             )}
 
@@ -213,11 +254,31 @@ export default function ResultPanel({ result, savedAt, inWatchlist, onAddWatchli
                 <GlassCard className="p-3">
                     <SubScoreBarChart
                         rows={[
-                            { label: 'Fundamental', score: result.subScores.fundamentals.score },
-                            { label: 'Berita', score: result.subScores.news.score },
-                            { label: 'Momentum', score: result.subScores.momentum.score },
-                            { label: 'Tren Panjang', score: result.subScores.momentumLongTerm.score },
-                            { label: 'Kepemilikan', score: result.subScores.ownership.score },
+                            {
+                                label: 'Fundamental',
+                                score: result.subScores.fundamentals.score,
+                                accuracyNote: subScoreAccuracyNote('fundamentals', accuracy),
+                            },
+                            {
+                                label: 'Berita',
+                                score: result.subScores.news.score,
+                                accuracyNote: subScoreAccuracyNote('news', accuracy),
+                            },
+                            {
+                                label: 'Momentum',
+                                score: result.subScores.momentum.score,
+                                accuracyNote: subScoreAccuracyNote('momentum', accuracy),
+                            },
+                            {
+                                label: 'Tren Panjang',
+                                score: result.subScores.momentumLongTerm.score,
+                                accuracyNote: subScoreAccuracyNote('momentumLongTerm', accuracy),
+                            },
+                            {
+                                label: 'Kepemilikan',
+                                score: result.subScores.ownership.score,
+                                accuracyNote: subScoreAccuracyNote('ownership', accuracy),
+                            },
                         ]}
                     />
                 </GlassCard>

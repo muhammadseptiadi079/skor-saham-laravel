@@ -71,6 +71,9 @@ export interface AnalysisResult {
     longterm: HorizonResult;
     trading: HorizonResult;
     horizonAlignment: HorizonAlignment;
+    subScoreDivergence: string | null;
+    staleDataWarning: string | null;
+    marketRegime: 'bull' | 'bear' | 'sideways' | null;
     priceTarget: PriceTarget | null;
     disclaimer: string;
 }

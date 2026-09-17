@@ -957,4 +957,95 @@ class ScoringEngineTest extends TestCase
 
         $this->assertStringNotContainsString('OBV', implode(' ', $result['subScores']['momentum']['notes']));
     }
+
+    public function test_sub_score_divergence_flagged_when_momentum_and_long_term_trend_disagree(): void
+    {
+        // Same fixture as the horizon-alignment conflict test: climbs 100->179 over 80 days, then
+        // dips over the most recent 20 days down to 139 — momentum (trading) reads negative while
+        // momentumLongTerm reads positive.
+        $pricesByAge = [];
+        for ($t = 0; $t < 100; $t++) {
+            $pricesByAge[$t] = $t <= 79 ? 100 + $t : 179 - ($t - 79) * 2;
+        }
+        $series = [];
+        foreach (array_reverse($pricesByAge) as $close) {
+            $series[] = ['close' => $close, 'volume' => 1000];
+        }
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertNotNull($result['subScoreDivergence']);
+        $this->assertStringContainsString('Momentum', $result['subScoreDivergence']);
+        $this->assertStringContainsString('Tren Panjang', $result['subScoreDivergence']);
+    }
+
+    public function test_sub_score_divergence_null_when_no_data_available(): void
+    {
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR');
+
+        $this->assertNull($result['subScoreDivergence']);
+    }
+
+    public function test_stale_data_warning_flagged_when_latest_price_is_old(): void
+    {
+        $oldDate = date('Y-m-d', strtotime('-10 days'));
+        $series = [['close' => 100, 'volume' => 1000, 'date' => $oldDate]];
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertNotNull($result['staleDataWarning']);
+        $this->assertStringContainsString($oldDate, $result['staleDataWarning']);
+    }
+
+    public function test_stale_data_warning_null_when_price_is_recent(): void
+    {
+        $series = [['close' => 100, 'volume' => 1000, 'date' => date('Y-m-d')]];
+
+        $result = $this->engine->buildAnalysis(null, null, $series, null, 'IDR');
+
+        $this->assertNull($result['staleDataWarning']);
+    }
+
+    public function test_stale_data_warning_null_when_price_series_missing(): void
+    {
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR');
+
+        $this->assertNull($result['staleDataWarning']);
+    }
+
+    public function test_market_regime_is_bull_when_benchmark_up_over_the_window(): void
+    {
+        $benchmark = array_fill(0, 21, ['close' => 1000, 'volume' => null]);
+        $benchmark[0] = ['close' => 1100, 'volume' => null];
+
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR', $benchmark, 'IHSG');
+
+        $this->assertSame('bull', $result['marketRegime']);
+    }
+
+    public function test_market_regime_is_bear_when_benchmark_down_over_the_window(): void
+    {
+        $benchmark = array_fill(0, 21, ['close' => 1000, 'volume' => null]);
+        $benchmark[0] = ['close' => 900, 'volume' => null];
+
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR', $benchmark, 'IHSG');
+
+        $this->assertSame('bear', $result['marketRegime']);
+    }
+
+    public function test_market_regime_is_sideways_when_benchmark_flat(): void
+    {
+        $benchmark = array_fill(0, 21, ['close' => 1000, 'volume' => null]);
+
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR', $benchmark, 'IHSG');
+
+        $this->assertSame('sideways', $result['marketRegime']);
+    }
+
+    public function test_market_regime_is_null_when_benchmark_series_missing(): void
+    {
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR');
+
+        $this->assertNull($result['marketRegime']);
+    }
 }

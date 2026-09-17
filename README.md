@@ -907,6 +907,48 @@ tema monokrom:
   (sebagian browser tetap melakukan ini meski sudah ada `<link
   rel="icon">`), tidak dapat file kosong/rusak.
 
+## Round Kedua Puluh Empat: Empat Fitur untuk Derajat Kepercayaan Analisis
+
+Bukan soal visual — empat penambahan yang murni soal transparansi: bikin
+analisis lebih jujur soal apa yang tidak diketahuinya, tanpa menambah
+satu pun klaim/prediksi baru.
+
+- **Akurasi historis tiap sub-skor langsung di hasil analisis** —
+  sebelumnya data "Fundamental akurat 62% dari 30 sampel" dsb. cuma ada
+  di tab Akurasi terpisah (`SubScoreAccuracyService::report()`). Sekarang
+  muncul langsung sebagai catatan kecil di bawah tiap bar sub-skor di
+  `SubScoreBarChart`, jadi kelihatan tanpa pindah tab. Digerbang sampel
+  minimal 10 (sama seperti `MIN_SAMPLE_FOR_HISTORICAL_NOTE` yang sudah
+  dipakai untuk catatan "Riwayat Label").
+- **Peringatan kalau sub-skor saling bertentangan**
+  (`ScoringEngine::subScoreDivergenceNote()`) — sebelumnya cuma dicek
+  "trading vs jangka panjang" (`horizonAlignment`), belum dicek
+  pertentangan ANTAR sub-skor dalam horizon yang sama. Sekarang kalau
+  ada sub-skor yang jelas positif (≥0.15) berbarengan dengan yang jelas
+  negatif (≤-0.15) — misalnya Fundamental bagus tapi Momentum jelek —
+  muncul catatan eksplisit menyebut sub-skor mana yang bertentangan,
+  supaya sinyal campur-aduk yang tersembunyi di balik satu angka
+  gabungan tidak disembunyikan dari user.
+- **Peringatan data harga basi** (`ScoringEngine::priceFreshnessNote()`)
+  — kalau data harga terakhir yang dipakai untuk momentum/tren ternyata
+  sudah ≥5 hari (API sumber data lag, bursa libur panjang, dll.),
+  sekarang ada peringatan eksplisit alih-alih diam-diam menghitung skor
+  dari harga basi. Ambang 5 hari sengaja longgar supaya akhir pekan +
+  satu hari libur normal tidak salah kena flag.
+- **Catatan kondisi pasar saat ini** (`ScoringEngine::currentMarketRegime()`)
+  — dihitung dari pergerakan indeks acuan (IHSG/S&amp;P 500) ~20 hari
+  terakhir, memakai ambang +/-3% yang sama dengan yang sudah dipakai
+  `BacktestService` untuk menandai rezim pasar tiap baris backtest.
+  Kalau kondisi pasar sekarang cukup mirip salah satu rezim yang sudah
+  cukup banyak sampelnya di `/api/accuracy`, muncul catatan "skor
+  trading aplikasi ini akurat X% dari N sampel dalam kondisi pasar
+  seperti ini" — bukan prediksi baru, cuma konteks jujur soal kapan
+  metode ini secara historis lebih/kurang bisa diandalkan.
+- Semua empat fitur ini nullable dan gagal aman (`null` kalau datanya
+  tidak cukup) — tidak ada yang memaksakan tampil kalau memang belum
+  ada dasarnya, konsisten dengan filosofi "jangan pura-pura tahu" yang
+  sudah dipakai di `confidenceCalibrationReport()`.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan

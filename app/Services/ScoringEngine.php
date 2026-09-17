@@ -61,6 +61,9 @@ class ScoringEngine
         $longtermConfidence = $this->confidenceFor($subScores, 'longterm', $longtermScore);
         $tradingConfidence = $this->confidenceFor($subScores, 'trading', $tradingScore);
         $horizonAlignment = $this->horizonAlignment($longtermScore, $tradingScore);
+        $subScoreDivergence = $this->subScoreDivergenceNote($subScores);
+        $staleDataWarning = $this->priceFreshnessNote($priceSeries);
+        $marketRegime = $this->currentMarketRegime($benchmarkSeries);
 
         $available = count(array_filter($subScores, fn ($s) => $s['score'] !== null));
 
@@ -95,6 +98,11 @@ class ScoringEngine
                 'confidenceNote' => $tradingConfidence['note'],
             ],
             'horizonAlignment' => $horizonAlignment,
+            // These three exist purely to make the analysis more trustworthy by saying what it
+            // doesn't know, rather than adding anything that looks like a new prediction.
+            'subScoreDivergence' => $subScoreDivergence,
+            'staleDataWarning' => $staleDataWarning,
+            'marketRegime' => $marketRegime,
             // Real analyst consensus data (not a prediction this app makes itself), surfaced at the
             // top level so the frontend can headline it instead of leaving it buried in a note.
             'priceTarget' => $fundamentalResult['analystTarget'] ?? null,
@@ -1074,6 +1082,101 @@ class ScoringEngine
             'bukan perubahan arah besar.';
 
         return ['aligned' => false, 'note' => $note];
+    }
+
+    // Flags when sub-scores meaningfully disagree with each other — a "Buy" arrived at by
+    // averaging a strongly bullish fundamental score against a strongly bearish momentum score
+    // looks identical to a genuinely uncontested "Buy" once combined into one number. Same
+    // +/-0.15 threshold as direction()/labelFor() so "meaningfully one-directional" means the
+    // same thing everywhere a score is read.
+    private function subScoreDivergenceNote(array $subScores): ?string
+    {
+        $labels = [
+            'fundamentals' => 'Fundamental',
+            'news' => 'Berita',
+            'momentum' => 'Momentum',
+            'momentumLongTerm' => 'Tren Panjang',
+            'ownership' => 'Kepemilikan',
+        ];
+
+        $positive = [];
+        $negative = [];
+        foreach ($subScores as $key => $result) {
+            $score = $result['score'] ?? null;
+            if ($score === null) {
+                continue;
+            }
+            $dir = $this->direction($score);
+            if ($dir === 1) {
+                $positive[] = $labels[$key] ?? $key;
+            } elseif ($dir === -1) {
+                $negative[] = $labels[$key] ?? $key;
+            }
+        }
+
+        if (count($positive) === 0 || count($negative) === 0) {
+            return null;
+        }
+
+        return 'Sinyal antar sub-skor saling bertentangan: '.implode(', ', $positive).' positif, sementara '.
+            implode(', ', $negative).' negatif. Skor gabungan di atas sudah memperhitungkan bobot masing-masing, '.
+            'tapi baca dulu rincian tiap sub-skor sebelum memutuskan — jangan cuma lihat label akhirnya.';
+    }
+
+    // Generous enough to survive a normal weekend + one holiday without a false alarm, but still
+    // catches a genuinely stuck/lagging data source (or a market on an extended holiday) that
+    // would otherwise silently feed stale prices into momentum/tren scoring.
+    private const STALE_PRICE_DAYS = 5;
+
+    private function priceFreshnessNote(?array $priceSeries): ?string
+    {
+        $latestDate = $priceSeries[0]['date'] ?? null;
+        if (! $latestDate) {
+            return null;
+        }
+
+        $daysOld = (int) round((strtotime('today') - strtotime($latestDate)) / 86400);
+        if ($daysOld < self::STALE_PRICE_DAYS) {
+            return null;
+        }
+
+        return "Data harga terakhir per {$latestDate} ({$daysOld} hari yang lalu) — kemungkinan sumber data belum ".
+            'update atau bursa sedang libur panjang. Skor yang berbasis harga (momentum, tren) mungkin belum '.
+            'mencerminkan kondisi terkini.';
+    }
+
+    private const REGIME_BULL_THRESHOLD = 0.03;
+
+    private const REGIME_BEAR_THRESHOLD = -0.03;
+
+    // Same +/-3% threshold BacktestService uses to tag graded rows with the regime they were
+    // evaluated in (see BacktestService::classifyRegime) — computed here from "now" instead of a
+    // fixed evaluation window, so the frontend can tell the user how this app's calls have
+    // historically fared in a market that looks like the current one (/api/accuracy's
+    // byMarketRegime).
+    private function currentMarketRegime(?array $benchmarkSeries): ?string
+    {
+        if (! $benchmarkSeries || count($benchmarkSeries) < 2) {
+            return null;
+        }
+
+        $now = $benchmarkSeries[0]['close'] ?? null;
+        // ~20 trading days back, matching the backtest's evaluation horizon — falls back to the
+        // oldest available point if there's less history than that.
+        $pastIndex = min(count($benchmarkSeries) - 1, 20);
+        $past = $benchmarkSeries[$pastIndex]['close'] ?? null;
+
+        if (! $now || ! $past || $past <= 0) {
+            return null;
+        }
+
+        $return = ($now - $past) / $past;
+
+        return match (true) {
+            $return > self::REGIME_BULL_THRESHOLD => 'bull',
+            $return < self::REGIME_BEAR_THRESHOLD => 'bear',
+            default => 'sideways',
+        };
     }
 
     // Buy/Sell threshold (0.15) shared with labelFor() so "has a clear direction" means the same
