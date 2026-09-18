@@ -29,12 +29,12 @@ export default function AppLayout({ online, children, tabs, activeTab, onTabChan
             </div>
 
             <div className="relative mx-auto flex min-h-screen max-w-3xl flex-col px-4 pb-24 sm:px-6 sm:pb-16">
-                <header className="sticky top-0 z-10 -mx-4 mb-4 flex items-center justify-between border-b border-slate-200 bg-slate-50/85 px-4 py-4 backdrop-blur-lg sm:-mx-6 sm:mb-0 sm:px-6">
-                    <h1>
+                <header className="sticky top-0 z-10 -mx-4 mb-4 flex flex-col gap-2 border-b border-slate-200 bg-slate-50/85 px-4 py-4 backdrop-blur-lg sm:-mx-6 sm:mb-0 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <h1 className="self-start">
                         <Wordmark />
                     </h1>
                     <span
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
+                        className={`inline-flex items-center gap-1.5 self-end rounded-full border px-2.5 py-1 text-xs font-medium sm:self-auto ${
                             online
                                 ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                                 : 'animate-pulse-ring border-rose-300 bg-rose-50 text-rose-700'

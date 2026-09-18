@@ -1071,6 +1071,41 @@ garis bawahnya juga diminta dihapus.
 - **Garis gelombang di bawah tulisan dihapus** sesuai permintaan —
   `Wordmark.tsx` sekarang cuma ikon api + teks, satu baris flex biasa,
   tanpa elemen dekoratif tambahan di bawahnya.
+
+User lalu kirim contoh visual papan LED dot-matrix sungguhan (kotak
+hitam bergrid, titik-titik putih menyala membentuk huruf, titik yang
+"mati" tetap kelihatan redup) dan minta wordmark-nya persis seperti
+itu. `Wordmark.tsx` ditulis ulang lagi jadi panel LED sungguhan:
+
+- **Dua layer CSS `mask-image`/`background-image` dengan pola
+  `radial-gradient` yang sama-sama diulang (`repeat`) di grid pitch
+  yang sama** — layer belakang gambar titik-titik redup penuh satu
+  panel (LED "mati"), layer depan adalah tulisan "JULAK SAHAM" (font
+  Silkscreen, putih) yang di-mask pakai pola titik yang sama persis,
+  jadi bentuk hurufnya "dikuantisasi" jadi kotak-kotak titik alih-alih
+  fill solid — hasilnya titik yang overlap sama garis huruf jadi
+  "menyala", sisanya tetap redup seperti panel LED asli.
+- **Ukurannya sengaja tidak di-scale turun untuk versi HP** — dicoba
+  bikin sekecil versi sebelumnya, hasilnya titik-titiknya jadi terlalu
+  rapat/kecil sampai tidak kebaca sama sekali (beda dari font vector
+  biasa yang tetap tajam di ukuran berapa pun, pola titik-titik ini
+  butuh ukuran fisik minimum). Solusinya: logo dikasih barisnya sendiri
+  penuh di header (badge "Online" dipindah ke bawahnya, bukan
+  sejajar), supaya logo tetap bisa berukuran besar & kebaca jelas di
+  HP. Dua ukuran panel dipakai (HP vs laptop), ditoggle lewat
+  Tailwind `sm:hidden` / `hidden sm:inline-block` alih-alih satu
+  panel yang di-scale, karena men-scale panelnya juga bakal
+  men-scale ukuran titik dan bikin masalah yang sama muncul lagi.
+- **Bug transisi**: sempat sengaja dua panel (versi HP & laptop)
+  keduanya kelihatan sekaligus di layar sempit — ternyata gara-gara
+  className dasar `LedPanel` ikut memaksa `inline-block` yang
+  tabrakan spesifisitas CSS-nya sama class `hidden` yang dioper dari
+  luar (dua-duanya sama-sama "unconditional", jadi yang menang cuma
+  soal urutan di stylesheet, bukan soal breakpoint). Fix-nya: hapus
+  `inline-block` dari className dasar, biar cuma class yang dioper
+  dari luar (`sm:hidden` / `hidden sm:inline-block`) yang atur
+  `display`-nya.
+
 - **Class `.text-holes` (tekstur lubang-lubang dari Round 17) dihapus**
   — sudah tidak dipakai lagi karena wordmark sekarang grafis penuh,
   bukan teks biasa yang di-mask.
