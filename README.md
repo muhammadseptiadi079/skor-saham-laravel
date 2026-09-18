@@ -1106,6 +1106,19 @@ itu. `Wordmark.tsx` ditulis ulang lagi jadi panel LED sungguhan:
   dari luar (`sm:hidden` / `hidden sm:inline-block`) yang atur
   `display`-nya.
 
+User akhirnya minta cara paling sederhana dan paling aman: **pakai
+langsung file gambar yang dikirim sebagai logo, jangan dibikin ulang
+lewat CSS/font sama sekali** — supaya dijamin identik, tidak ada
+risiko beda tipis gara-gara font belum ke-load, ukuran mask meleset,
+dsb. `Wordmark.tsx` disederhanakan drastis jadi cuma `<img
+src="/images/wordmark.jpg" />` (file disimpan di
+`public/images/wordmark.jpg`, resolusi tinggi jadi tetap tajam waktu
+di-scale). Karena sekarang gambar raster biasa (bukan pola titik yang
+butuh ukuran fisik minimum seperti percobaan sebelumnya), header bisa
+dikembalikan ke tata letak satu baris seperti semula (logo & badge
+"Online" sejajar lagi, tidak perlu ditumpuk). Google Fonts "Silkscreen"
+juga dilepas dari `app.blade.php` karena sudah tidak dipakai lagi.
+
 - **Class `.text-holes` (tekstur lubang-lubang dari Round 17) dihapus**
   — sudah tidak dipakai lagi karena wordmark sekarang grafis penuh,
   bukan teks biasa yang di-mask.
