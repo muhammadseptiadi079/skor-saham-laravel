@@ -85,13 +85,14 @@ class AnalyzeControllerTest extends TestCase
         $response->assertOk();
         $response->assertJsonStructure([
             'ticker', 'market', 'name', 'currency', 'generatedAt',
-            'subScores' => ['fundamentals', 'news', 'momentum', 'ownership'],
+            'subScores' => ['fundamentals', 'news', 'momentum', 'ownership', 'foreignFlow'],
             'longterm' => ['score', 'label'],
             'trading' => ['score', 'label'],
             'horizonAlignment' => ['aligned', 'note'],
             'subScoreDivergence',
             'staleDataWarning',
             'marketRegime',
+            'corporateAction',
             'priceTarget',
             'disclaimer',
         ]);
@@ -162,6 +163,85 @@ class AnalyzeControllerTest extends TestCase
         // Latest close is 3000 + 24*10 = 3240; target 4000 -> upside (4000-3240)/3240.
         $response->assertJsonPath('priceTarget.targetPrice', 4000);
         $this->assertEqualsWithDelta((4000 - 3240) / 3240, $response->json('priceTarget.upsidePct'), 0.0001);
+    }
+
+    public function test_foreign_flow_is_present_end_to_end_when_idx_endpoint_returns_data(): void
+    {
+        $timestamps = [];
+        $closes = [];
+        $volumes = [];
+        $base = 1_000_000_000;
+        for ($i = 0; $i < 25; $i++) {
+            $timestamps[] = $base + $i * 86400;
+            $closes[] = 3000 + $i * 10;
+            $volumes[] = 500_000;
+        }
+
+        Http::fake([
+            'https://query1.finance.yahoo.com/v8/finance/chart/*' => Http::response([
+                'chart' => ['result' => [[
+                    'meta' => ['currency' => 'IDR', 'symbol' => 'BBCA.JK'],
+                    'timestamp' => $timestamps,
+                    'indicators' => ['quote' => [['close' => $closes, 'volume' => $volumes]]],
+                ]]],
+            ]),
+            'https://query1.finance.yahoo.com/v10/finance/quoteSummary/*' => Http::response([
+                'quoteSummary' => ['result' => [['financialData' => [], 'defaultKeyStatistics' => [], 'summaryDetail' => []]]],
+            ]),
+            'https://news.google.com/rss/search*' => Http::response(
+                '<?xml version="1.0"?><rss><channel></channel></rss>',
+                200,
+                ['Content-Type' => 'application/xml']
+            ),
+            'idx.co.id/*' => Http::response([
+                'data' => [
+                    ['ForeignBuyValue' => 8_000_000_000, 'ForeignSellValue' => 2_000_000_000, 'Date' => '2024-06-10'],
+                ],
+            ]),
+        ]);
+
+        $response = $this->getJson('/api/analyze?ticker=BBCA&market=idx');
+
+        $response->assertOk();
+        $this->assertGreaterThan(0, $response->json('subScores.foreignFlow.score'));
+        $this->assertStringContainsString('2024-06-10', implode(' ', $response->json('subScores.foreignFlow.notes')));
+    }
+
+    public function test_foreign_flow_is_null_end_to_end_when_idx_endpoint_fails(): void
+    {
+        $timestamps = [];
+        $closes = [];
+        $volumes = [];
+        $base = 1_000_000_000;
+        for ($i = 0; $i < 25; $i++) {
+            $timestamps[] = $base + $i * 86400;
+            $closes[] = 3000 + $i * 10;
+            $volumes[] = 500_000;
+        }
+
+        Http::fake([
+            'https://query1.finance.yahoo.com/v8/finance/chart/*' => Http::response([
+                'chart' => ['result' => [[
+                    'meta' => ['currency' => 'IDR', 'symbol' => 'BBCA.JK'],
+                    'timestamp' => $timestamps,
+                    'indicators' => ['quote' => [['close' => $closes, 'volume' => $volumes]]],
+                ]]],
+            ]),
+            'https://query1.finance.yahoo.com/v10/finance/quoteSummary/*' => Http::response([
+                'quoteSummary' => ['result' => [['financialData' => [], 'defaultKeyStatistics' => [], 'summaryDetail' => []]]],
+            ]),
+            'https://news.google.com/rss/search*' => Http::response(
+                '<?xml version="1.0"?><rss><channel></channel></rss>',
+                200,
+                ['Content-Type' => 'application/xml']
+            ),
+            'idx.co.id/*' => Http::response('', 500),
+        ]);
+
+        $response = $this->getJson('/api/analyze?ticker=BBCA&market=idx');
+
+        $response->assertOk();
+        $this->assertNull($response->json('subScores.foreignFlow.score'));
     }
 
     public function test_national_theme_note_appears_when_watchlist_sector_matches_and_news_is_active(): void

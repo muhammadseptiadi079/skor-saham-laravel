@@ -65,6 +65,8 @@ export interface AnalysisResult {
         momentum: SubScoreResult;
         momentumLongTerm: SubScoreResult;
         ownership: OwnershipSubScore;
+        // IDX only — always null (score) for global tickers, see IdxForeignFlowService.
+        foreignFlow: SubScoreResult;
     };
     dataCompleteness: DataCompleteness;
     lowLiquidity: boolean;
@@ -74,6 +76,8 @@ export interface AnalysisResult {
     subScoreDivergence: string | null;
     staleDataWarning: string | null;
     marketRegime: 'bull' | 'bear' | 'sideways' | null;
+    // Upcoming stock split / rights issue (HMETD) note — IDX only, see IdxCorporateActionService.
+    corporateAction: string | null;
     priceTarget: PriceTarget | null;
     disclaimer: string;
 }

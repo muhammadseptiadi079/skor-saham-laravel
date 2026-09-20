@@ -181,6 +181,48 @@ class AlphaVantageService
         return $rows;
     }
 
+    // Real commodity-price data, used for CommodityPriceService's sector context note. Free-tier,
+    // documented: https://www.alphavantage.co/documentation/#commodities — monthly interval only
+    // (WTI/BRENT/NATURAL_GAS also support daily/weekly, but COPPER and the other metals don't, so
+    // monthly is used uniformly here rather than special-casing per commodity).
+    public function commodityQuery(string $function): array
+    {
+        return ['function' => $function, 'interval' => 'monthly', 'apikey' => $this->apiKey()];
+    }
+
+    public function getCommodity(string $function): ?array
+    {
+        $data = Http::get(self::BASE, $this->commodityQuery($function))->json();
+
+        return $this->parseCommodity($data);
+    }
+
+    /** @return array<int, array{date: string, value: float}>|null newest first */
+    public function parseCommodity(?array $data): ?array
+    {
+        $rows = $data['data'] ?? null;
+        if (! is_array($rows) || count($rows) === 0) {
+            return null;
+        }
+
+        $points = [];
+        foreach ($rows as $row) {
+            $value = $this->toNum($row['value'] ?? null);
+            $date = $row['date'] ?? null;
+            if ($value === null || ! is_string($date)) {
+                continue;
+            }
+            $points[] = ['date' => $date, 'value' => $value];
+        }
+        if (count($points) === 0) {
+            return null;
+        }
+
+        usort($points, fn ($a, $b) => strcmp($b['date'], $a['date'])); // newest first
+
+        return $points;
+    }
+
     private function toNum($v): ?float
     {
         if ($v === null || $v === '') {

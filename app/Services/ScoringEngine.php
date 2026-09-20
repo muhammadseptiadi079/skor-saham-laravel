@@ -17,7 +17,12 @@ class ScoringEngine
         // a distinct sub-score ('momentumLongTerm') so a short-term wiggle can't drive a "buy for
         // years" call, and a long-term uptrend can't drive a "buy for the next few weeks" call.
         'longterm' => ['fundamentals' => 0.45, 'news' => 0.15, 'momentumLongTerm' => 0.15, 'ownership' => 0.25],
-        'trading' => ['fundamentals' => 0.1, 'news' => 0.3, 'momentum' => 0.4, 'ownership' => 0.2],
+        // 'foreignFlow' (net asing beli/jual) is IDX-only and only reflects the latest trading
+        // day, so it's a trading-horizon signal only — it never appears in 'longterm'. It's
+        // simply absent (never null-with-zero-weight) for global tickers, and combine()/
+        // confidenceFor() already skip any sub-score that comes back null, so the other four
+        // weights re-normalize automatically rather than needing a separate global-only table.
+        'trading' => ['fundamentals' => 0.1, 'news' => 0.25, 'momentum' => 0.35, 'ownership' => 0.15, 'foreignFlow' => 0.15],
     ];
 
     // Exposed read-only so SubScoreAccuracyService can cross-reference accuracy data against the
@@ -38,12 +43,16 @@ class ScoringEngine
         ?array $sectorContext = null,
         array $activeThemes = [],
         ?string $newsVolumeNote = null,
+        ?array $foreignFlow = null,
+        ?string $commodityContextNote = null,
+        ?array $corporateAction = null,
     ): array {
         $currentPrice = $priceSeries[0]['close'] ?? null;
-        $fundamentalResult = $this->scoreFundamentals($fundamentals, $currentPrice, $currency, $sectorContext, $activeThemes);
+        $fundamentalResult = $this->scoreFundamentals($fundamentals, $currentPrice, $currency, $sectorContext, $activeThemes, $commodityContextNote);
         $momentumResult = $this->scoreMomentum($priceSeries, $currency, $benchmarkSeries, $benchmarkLabel);
         $longTermTrendResult = $this->scoreLongTermTrend($priceSeries);
         $ownershipResult = $this->scoreOwnership($ownershipTransactions, $currency, $fundamentals['marketCap'] ?? null);
+        $foreignFlowResult = $this->scoreForeignFlow($foreignFlow);
 
         $newsArticles = $newsArticles ?? [];
         $newsResult = $this->scoreNews($newsArticles, $newsVolumeNote);
@@ -54,6 +63,7 @@ class ScoringEngine
             'momentum' => $momentumResult,
             'momentumLongTerm' => $longTermTrendResult,
             'ownership' => $ownershipResult,
+            'foreignFlow' => $foreignFlowResult,
         ];
 
         $longtermScore = $this->combine($subScores, 'longterm');
@@ -82,6 +92,7 @@ class ScoringEngine
                     'notes' => $ownershipResult['notes'],
                     'transactions' => $ownershipResult['transactions'] ?? [],
                 ],
+                'foreignFlow' => ['score' => $foreignFlowResult['score'], 'notes' => $foreignFlowResult['notes']],
             ],
             'dataCompleteness' => ['available' => $available, 'total' => count($subScores)],
             'lowLiquidity' => $momentumResult['lowLiquidity'] ?? false,
@@ -103,6 +114,11 @@ class ScoringEngine
             'subScoreDivergence' => $subScoreDivergence,
             'staleDataWarning' => $staleDataWarning,
             'marketRegime' => $marketRegime,
+            // Stock split / rights issue (HMETD) proximity — a "go look into this yourself" note,
+            // same spirit as the three above. Not scored: a split doesn't change company value,
+            // and a rights issue's price impact depends on take-up rate, not something this app
+            // can observe.
+            'corporateAction' => $this->corporateActionNote($corporateAction),
             // Real analyst consensus data (not a prediction this app makes itself), surfaced at the
             // top level so the frontend can headline it instead of leaving it buried in a note.
             'priceTarget' => $fundamentalResult['analystTarget'] ?? null,
@@ -111,18 +127,19 @@ class ScoringEngine
         ];
     }
 
-    private function scoreFundamentals(?array $f, ?float $currentPrice, string $currency, ?array $sectorContext = null, array $activeThemes = []): array
+    private function scoreFundamentals(?array $f, ?float $currentPrice, string $currency, ?array $sectorContext = null, array $activeThemes = [], ?string $commodityContextNote = null): array
     {
         $themeNotes = $this->nationalThemeNotes($activeThemes);
+        $commodityNotes = $commodityContextNote ? [$commodityContextNote] : [];
 
         if (! $f) {
-            return ['score' => null, 'notes' => [...$themeNotes, 'Data fundamental tidak tersedia.'], 'analystTarget' => null];
+            return ['score' => null, 'notes' => [...$themeNotes, ...$commodityNotes, 'Data fundamental tidak tersedia.'], 'analystTarget' => null];
         }
 
         $notes = [];
         $parts = [];
         $analystTarget = null;
-        $contextNotes = [...$this->fundamentalContextNotes($f, $currency, $currentPrice, $sectorContext), ...$themeNotes];
+        $contextNotes = [...$this->fundamentalContextNotes($f, $currency, $currentPrice, $sectorContext), ...$themeNotes, ...$commodityNotes];
 
         if ($this->isNum($f['revenueGrowthYoy'] ?? null)) {
             $v = $f['revenueGrowthYoy'];
@@ -971,6 +988,66 @@ class ScoringEngine
         };
     }
 
+    // Net foreign buy/sell (asing net beli/jual) — one of the most closely watched signals by
+    // Indonesian retail traders, and not derivable from Yahoo/Alpha Vantage's data at all. IDX
+    // only: $foreignFlow comes from IdxForeignFlowService and is always null for global tickers,
+    // which combine()/confidenceFor() already treat as "this sub-score sits out," not "zero."
+    // Same (buy-sell)/(buy+sell) normalization as scoreOwnership, for the same reason: it's a
+    // clean -1..1 signal regardless of the absolute rupiah value traded.
+    private function scoreForeignFlow(?array $foreignFlow): array
+    {
+        if ($foreignFlow === null) {
+            return ['score' => null, 'notes' => ['Data arus beli/jual asing tidak tersedia untuk saham ini.']];
+        }
+
+        $buy = $foreignFlow['buyValue'] ?? null;
+        $sell = $foreignFlow['sellValue'] ?? null;
+        if (! $this->isNum($buy) || ! $this->isNum($sell) || ($buy + $sell) <= 0) {
+            return ['score' => null, 'notes' => ['Tidak ada transaksi asing yang tercatat pada data perdagangan terakhir.']];
+        }
+
+        $score = $this->clamp(($buy - $sell) / ($buy + $sell));
+        $net = $buy - $sell;
+        $arah = $net >= 0 ? 'net beli' : 'net jual';
+        $asOf = ! empty($foreignFlow['asOfDate']) ? " per {$foreignFlow['asOfDate']}" : '';
+
+        return [
+            'score' => $score,
+            'notes' => [
+                "Asing {$arah} senilai {$this->money(abs($net), 'IDR')} pada perdagangan terakhir{$asOf} → {$this->describe($score)}",
+                'Data arus asing cuma dari satu hari perdagangan terakhir dan bisa berubah cepat — bukan sinyal tren jangka panjang.',
+            ],
+        ];
+    }
+
+    // Stock split / rights issue (HMETD) — deliberately narrow: ex-dividend timing already has
+    // its own note (see fundamentalContextNotes(), sourced from Yahoo/Alpha Vantage fundamentals
+    // directly), this only covers actions that change the share count, which nothing else in the
+    // app surfaces. IDX only — see IdxCorporateActionService.
+    private const CORPORATE_ACTION_WINDOW_DAYS = 30;
+
+    private function corporateActionNote(?array $action): ?string
+    {
+        if (! $action || empty($action['date']) || empty($action['type'])) {
+            return null;
+        }
+
+        $daysUntil = (int) round((strtotime($action['date']) - strtotime('today')) / 86400);
+        if ($daysUntil < 0 || $daysUntil > self::CORPORATE_ACTION_WINDOW_DAYS) {
+            return null;
+        }
+
+        if ($action['type'] === 'split') {
+            return "Ada rencana stock split sekitar {$action['date']} (~{$daysUntil} hari lagi) — jumlah saham beredar ".
+                'bertambah dan harga per lembar otomatis turun proporsional (bukan penurunan nilai perusahaan), tapi '.
+                'harga yang jadi lebih terjangkau kadang memicu minat beli ritel baru.';
+        }
+
+        return "Ada rencana rights issue/HMETD sekitar {$action['date']} (~{$daysUntil} hari lagi) — bisa mendilusi ".
+            'kepemilikan pemegang saham lama yang tidak menebus haknya, dan harga saham sering tertekan menjelang '.
+            'tanggal ini karena antisipasi dilusi tersebut.';
+    }
+
     private function money(float $v, string $currency): string
     {
         $isIdr = $currency === 'IDR';
@@ -1097,6 +1174,7 @@ class ScoringEngine
             'momentum' => 'Momentum',
             'momentumLongTerm' => 'Tren Panjang',
             'ownership' => 'Kepemilikan',
+            'foreignFlow' => 'Arus Asing',
         ];
 
         $positive = [];

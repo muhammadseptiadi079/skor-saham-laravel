@@ -12,7 +12,7 @@ use App\Models\AnalysisHistory;
 // for months, let's lower its weight" is safer than a formula doing it from a handful of rows.
 class SubScoreAccuracyService
 {
-    private const SUB_SCORE_KEYS = ['fundamentals', 'news', 'momentum', 'momentumLongTerm', 'ownership'];
+    private const SUB_SCORE_KEYS = ['fundamentals', 'news', 'momentum', 'momentumLongTerm', 'ownership', 'foreignFlow'];
 
     // A sub-score needs at least this many graded samples before its accuracy is trusted enough to
     // even suggest a weight change — below this, a run of luck or bad luck is too likely to be

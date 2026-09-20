@@ -24,6 +24,9 @@ class StockAnalysisService
         private NationalThemeService $nationalThemes,
         private NewsVolumeService $newsVolume,
         private ManualNewsService $manualNews,
+        private IdxForeignFlowService $idxForeignFlow,
+        private IdxCorporateActionService $idxCorporateAction,
+        private CommodityPriceService $commodityPrice,
     ) {}
 
     public function analyze(string $ticker, string $market): array
@@ -40,6 +43,7 @@ class StockAnalysisService
         $activeThemes = $this->safe(fn () => $this->nationalThemes->activeThemesForSector($sector, $market)) ?? [];
         $newsArticleCount = count($data['newsArticles'] ?? []);
         $newsVolumeNote = $this->safe(fn () => $this->newsVolume->spikeNoteFor($ticker, $market, $newsArticleCount));
+        $commodityNote = $this->safe(fn () => $this->commodityPrice->contextNoteFor($sector));
 
         $analysis = $this->scoringEngine->buildAnalysis(
             $data['fundamentals'],
@@ -52,6 +56,9 @@ class StockAnalysisService
             $sectorContext,
             $activeThemes,
             $newsVolumeNote,
+            $data['foreignFlow'] ?? null,
+            $commodityNote,
+            $data['corporateAction'] ?? null,
         );
 
         return array_merge([
@@ -139,6 +146,12 @@ class StockAnalysisService
         $scored = $this->sentiment->scoreArticles($newsRaw);
         $manualArticles = $this->safe(fn () => $this->manualNews->recentArticlesFor($ticker, 'idx')) ?? [];
 
+        // Two more IDX-only, best-effort scrapes (see IdxForeignFlowService/IdxCorporateActionService
+        // docblocks) — not part of the pool above since they hit a different host and already have
+        // their own internal try/catch, so a failure here can't affect the rest of the analysis.
+        $foreignFlow = $this->safe(fn () => $this->idxForeignFlow->latestFlowFor($ticker));
+        $corporateAction = $this->safe(fn () => $this->idxCorporateAction->upcomingActionFor($ticker));
+
         return [
             'name' => $chart['name'] ?? $this->yahooFinance->normalizeIdxTicker($ticker),
             'fundamentals' => $fundamentals,
@@ -148,6 +161,8 @@ class StockAnalysisService
             'currency' => 'IDR',
             'benchmarkSeries' => $this->getIdxBenchmarkSeries(),
             'benchmarkLabel' => 'IHSG',
+            'foreignFlow' => $foreignFlow,
+            'corporateAction' => $corporateAction,
         ];
     }
 

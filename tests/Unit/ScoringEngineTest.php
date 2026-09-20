@@ -343,7 +343,7 @@ class ScoringEngineTest extends TestCase
         $result = $this->engine->buildAnalysis(['pegRatio' => 0.8], null, null, null, 'IDR');
 
         $this->assertSame(1, $result['dataCompleteness']['available']);
-        $this->assertSame(5, $result['dataCompleteness']['total']);
+        $this->assertSame(6, $result['dataCompleteness']['total']);
     }
 
     public function test_insider_time_decay_discounts_old_transactions(): void
@@ -387,7 +387,24 @@ class ScoringEngineTest extends TestCase
         $result = $this->engine->buildAnalysis($fundamentals, $articles, $series, $transactions, 'IDR');
 
         $this->assertSame(5, $result['dataCompleteness']['available']);
-        $this->assertSame(5, $result['dataCompleteness']['total']);
+        $this->assertSame(6, $result['dataCompleteness']['total']);
+    }
+
+    public function test_data_completeness_is_full_including_foreign_flow_when_everything_available(): void
+    {
+        $fundamentals = ['pegRatio' => 0.8];
+        $articles = [['title' => 'A', 'sentimentScore' => 0.5]];
+        $series = array_fill(0, 100, ['close' => 100, 'volume' => 1000]);
+        $transactions = [['type' => 'buy', 'insiderName' => 'A', 'value' => 1000, 'shares' => 10, 'date' => null]];
+        $foreignFlow = ['buyValue' => 1_000_000, 'sellValue' => 200_000, 'asOfDate' => '2024-01-02'];
+
+        $result = $this->engine->buildAnalysis(
+            $fundamentals, $articles, $series, $transactions, 'IDR',
+            null, null, null, [], null, $foreignFlow
+        );
+
+        $this->assertSame(6, $result['dataCompleteness']['available']);
+        $this->assertSame(6, $result['dataCompleteness']['total']);
     }
 
     public function test_analyst_recommendation_trend_scores_positive_when_mostly_buy(): void
@@ -1047,5 +1064,100 @@ class ScoringEngineTest extends TestCase
         $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR');
 
         $this->assertNull($result['marketRegime']);
+    }
+
+    public function test_foreign_flow_scores_positive_when_net_buy(): void
+    {
+        $foreignFlow = ['buyValue' => 1_000_000_000, 'sellValue' => 200_000_000, 'asOfDate' => '2024-03-01'];
+
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR', foreignFlow: $foreignFlow);
+
+        $this->assertGreaterThan(0, $result['subScores']['foreignFlow']['score']);
+        $this->assertStringContainsString('net beli', implode(' ', $result['subScores']['foreignFlow']['notes']));
+        $this->assertStringContainsString('2024-03-01', implode(' ', $result['subScores']['foreignFlow']['notes']));
+    }
+
+    public function test_foreign_flow_scores_negative_when_net_sell(): void
+    {
+        $foreignFlow = ['buyValue' => 100_000_000, 'sellValue' => 900_000_000, 'asOfDate' => '2024-03-01'];
+
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR', foreignFlow: $foreignFlow);
+
+        $this->assertLessThan(0, $result['subScores']['foreignFlow']['score']);
+        $this->assertStringContainsString('net jual', implode(' ', $result['subScores']['foreignFlow']['notes']));
+    }
+
+    public function test_foreign_flow_is_null_when_data_unavailable(): void
+    {
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR');
+
+        $this->assertNull($result['subScores']['foreignFlow']['score']);
+    }
+
+    public function test_foreign_flow_is_null_when_no_transactions_recorded(): void
+    {
+        $foreignFlow = ['buyValue' => 0, 'sellValue' => 0, 'asOfDate' => '2024-03-01'];
+
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR', foreignFlow: $foreignFlow);
+
+        $this->assertNull($result['subScores']['foreignFlow']['score']);
+    }
+
+    public function test_foreign_flow_never_included_in_longterm_weights(): void
+    {
+        // A huge, purely one-day foreign flow shouldn't be able to move the multi-year call —
+        // only 'trading' includes 'foreignFlow' in ScoringEngine::WEIGHTS.
+        $foreignFlow = ['buyValue' => 1_000_000_000, 'sellValue' => 0, 'asOfDate' => '2024-03-01'];
+
+        $withFlow = $this->engine->buildAnalysis(['pegRatio' => 0.8], null, null, null, 'IDR', foreignFlow: $foreignFlow);
+        $withoutFlow = $this->engine->buildAnalysis(['pegRatio' => 0.8], null, null, null, 'IDR');
+
+        $this->assertSame($withoutFlow['longterm']['score'], $withFlow['longterm']['score']);
+    }
+
+    public function test_commodity_context_note_is_folded_into_fundamentals_notes(): void
+    {
+        $result = $this->engine->buildAnalysis(
+            ['pegRatio' => 0.8], null, null, null, 'IDR',
+            commodityContextNote: 'Harga tembaga naik 12.0% dalam 3 bulan terakhir — contoh catatan.'
+        );
+
+        $this->assertStringContainsString('tembaga', implode(' ', $result['subScores']['fundamentals']['notes']));
+    }
+
+    public function test_corporate_action_note_for_upcoming_split(): void
+    {
+        $soon = date('Y-m-d', strtotime('+10 days'));
+
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR', corporateAction: ['type' => 'split', 'date' => $soon]);
+
+        $this->assertNotNull($result['corporateAction']);
+        $this->assertStringContainsString('stock split', $result['corporateAction']);
+    }
+
+    public function test_corporate_action_note_for_upcoming_rights_issue(): void
+    {
+        $soon = date('Y-m-d', strtotime('+10 days'));
+
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR', corporateAction: ['type' => 'rights_issue', 'date' => $soon]);
+
+        $this->assertNotNull($result['corporateAction']);
+        $this->assertStringContainsString('rights issue', $result['corporateAction']);
+    }
+
+    public function test_corporate_action_note_null_when_too_far_away(): void
+    {
+        $farAway = date('Y-m-d', strtotime('+90 days'));
+
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR', corporateAction: ['type' => 'split', 'date' => $farAway]);
+
+        $this->assertNull($result['corporateAction']);
+    }
+
+    public function test_corporate_action_note_null_when_missing(): void
+    {
+        $result = $this->engine->buildAnalysis(null, null, null, null, 'IDR');
+
+        $this->assertNull($result['corporateAction']);
     }
 }

@@ -218,6 +218,12 @@ export default function ResultPanel({
                 </div>
             )}
 
+            {result.corporateAction && (
+                <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    {result.corporateAction}
+                </div>
+            )}
+
             {result.marketRegime && regimeAccuracy && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                     Kondisi pasar saat ini mirip &quot;{REGIME_LABELS[result.marketRegime]}&quot; — secara historis, skor
@@ -318,6 +324,11 @@ export default function ResultPanel({
                                 score: result.subScores.ownership.score,
                                 accuracyNote: subScoreAccuracyNote('ownership', accuracy),
                             },
+                            {
+                                label: 'Arus Asing',
+                                score: result.subScores.foreignFlow.score,
+                                accuracyNote: subScoreAccuracyNote('foreignFlow', accuracy),
+                            },
                         ]}
                     />
                 </GlassCard>
@@ -387,6 +398,13 @@ export default function ResultPanel({
                             ))}
                         </ul>
                     )}
+                </GlassCard>
+
+                <GlassCard className="p-3.5">
+                    <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-600 uppercase">
+                        Arus Asing (Foreign Flow)
+                    </h4>
+                    <NoteList notes={result.subScores.foreignFlow.notes} />
                 </GlassCard>
             </div>
 

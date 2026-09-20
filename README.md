@@ -1131,6 +1131,63 @@ juga dilepas dari `app.blade.php` karena sudah tidak dipakai lagi.
   supaya riwayat analisis yang sudah tersimpan di HP tidak hilang
   gara-gara nama storage-nya berubah.
 
+## Round Kedua Puluh Sembilan: Arus Asing, Harga Komoditas, Aksi Korporasi
+
+Tiga sinyal baru sekaligus, semuanya hal yang biasa dipakai trader IDX
+tapi belum ada di aplikasi ini sama sekali sebelumnya:
+
+- **Arus beli/jual asing (`IdxForeignFlowService`, sub-skor baru
+  `foreignFlow`)** — salah satu sinyal yang paling sering dipantau
+  trader ritel Indonesia. IDX-only, dan dimasukkan sebagai sub-skor
+  yang **benar-benar ikut menghitung skor** (bukan cuma catatan),
+  khusus di bobot `trading` (bukan `longterm` — data cuma dari satu
+  hari perdagangan terakhir, tidak relevan untuk keputusan
+  bertahun-tahun). Normalisasinya sama persis dengan
+  `scoreOwnership()`: `(beli - jual) / (beli + jual)`, clamp ke
+  -1..1. Bobot `trading` dirombak dari `fundamentals 0.1, news 0.3,
+  momentum 0.4, ownership 0.2` jadi `fundamentals 0.1, news 0.25,
+  momentum 0.35, ownership 0.15, foreignFlow 0.15` — total tetap 1.0.
+  Untuk saham global, datanya selalu `null`; `combine()`/
+  `confidenceFor()` sudah otomatis melewati sub-skor yang `null` dan
+  menormalkan ulang sisa bobotnya, jadi tidak perlu tabel bobot
+  terpisah untuk IDX vs global.
+- **Momentum harga komoditas (`CommodityPriceService`)** — pelengkap
+  kuantitatif untuk tema "harga_komoditas" yang sudah ada di
+  `NationalThemeService` (yang itu cuma cek "lagi ramai dibicarakan
+  di berita atau tidak", ini pakai data harga sungguhan dari Alpha
+  Vantage). Sektor Energi dipetakan ke harga minyak mentah WTI,
+  sektor Pertambangan ke harga tembaga — **keduanya proksi, bukan
+  data yang persis sama**: Alpha Vantage versi gratis tidak
+  menyediakan harga batu bara/nikel/CPO yang notabene komoditas
+  ekspor utama Indonesia, jadi catatannya secara eksplisit bilang ini
+  cuma proksi terdekat yang tersedia gratis. Cuma jadi catatan di
+  sub-skor Fundamental (tidak ikut dihitung skornya) — dampak
+  pergerakan komoditas ke laba emiten tertentu beda-beda tergantung
+  kontrak jual, lindung nilai, dan biaya produksi, sama seperti alasan
+  tema `NationalThemeService` juga tidak ikut dihitung.
+- **Aksi korporasi: stock split & rights issue/HMETD
+  (`IdxCorporateActionService`)** — catatan baru, bukan sub-skor.
+  Sengaja tidak mengulang tanggal Ex Dividen yang sudah ada duluan
+  (lihat `fundamentalContextNotes()`, sumbernya langsung dari field
+  `exDividendDate` di data fundamental Yahoo/Alpha Vantage) — ini
+  cuma menutupi aksi yang mengubah jumlah saham beredar, yang belum
+  ada catatannya sama sekali. Muncul kalau tanggalnya dalam 30 hari
+  ke depan.
+- **Jujur soal keterbatasan sumber data**: `IdxForeignFlowService` dan
+  `IdxCorporateActionService` sama-sama scrape endpoint internal
+  idx.co.id (pola yang sama dengan `IdxIpoService` dari round-round
+  sebelumnya) — dan sandbox tempat kode ini ditulis **tidak
+  punya akses internet ke idx.co.id sama sekali**, jadi path
+  endpoint dan nama field di kedua service ini adalah tebakan terbaik
+  berdasarkan pola widget IDX yang sudah ada, bukan yang sudah
+  diverifikasi jalan. Kalau di produksi hasilnya selalu kosong, cek
+  response asli endpoint tersebut (lewat browser devtools di
+  idx.co.id) dan sesuaikan nama field di `parseRow()`/`nearestAction()`
+  — sama seperti catatan yang sama persis di `IdxIpoService`. Tidak
+  bisa mengambil data ini harus selalu terdegradasi jadi `null`, bukan
+  mematikan seluruh analisis — dan itu sudah diverifikasi lewat test
+  (`test_returns_null_when_endpoint_fails` di kedua service).
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
