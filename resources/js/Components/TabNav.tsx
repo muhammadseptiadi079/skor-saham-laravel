@@ -74,7 +74,9 @@ export default function TabNav({ tabs, active, onChange }: TabNavProps) {
 
     return (
         <>
-            <nav className="mb-6 hidden gap-1 border-b border-slate-200 sm:flex">
+            {/* Hidden again at lg: and up — the sidebar layout there shows every panel at once,
+                so switching "tabs" would have nothing left to do. */}
+            <nav className="mb-6 hidden gap-1 border-b border-slate-200 sm:flex lg:hidden">
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}

@@ -249,64 +249,82 @@ export default function Dashboard() {
                 />
             </div>
 
-            {activeTab === 'analisis' && (
-                <div className="animate-fade-in-up flex flex-col gap-5">
-                    {result && (
-                        <ResultPanel
-                            result={result}
-                            savedAt={resultSavedAt}
-                            inWatchlist={inWatchlist}
-                            isFavorite={isFavorite}
-                            onAddWatchlist={handleAddWatchlist}
-                            onQuickFavoriteTrading={() => handleQuickFavorite(result.ticker, result.market, result.name)}
-                            trendEntries={resultTrend}
-                            accuracy={accuracy}
+            {(() => {
+                const analisisSection = (
+                    <>
+                        {result && (
+                            <ResultPanel
+                                result={result}
+                                savedAt={resultSavedAt}
+                                inWatchlist={inWatchlist}
+                                isFavorite={isFavorite}
+                                onAddWatchlist={handleAddWatchlist}
+                                onQuickFavoriteTrading={() => handleQuickFavorite(result.ticker, result.market, result.name)}
+                                trendEntries={resultTrend}
+                                accuracy={accuracy}
+                            />
+                        )}
+                        <ManualNewsPanel defaultTicker={result?.ticker} defaultMarket={result?.market} />
+                        <LocalHistoryPanel items={localHistory} onSelect={handleSelectCached} />
+                    </>
+                );
+                const watchlistSection = (
+                    <>
+                        <WatchlistPanel
+                            items={watchlist}
+                            onSelect={runAnalyze}
+                            onRemove={handleRemoveWatchlist}
+                            onToggleFavorite={handleToggleFavorite}
+                            onChangeSector={handleChangeSector}
+                            onAddStarterPack={handleAddStarterPack}
+                            addingStarterPack={addingStarterPack}
                         />
-                    )}
+                        <PortfolioPanel
+                            favorites={watchlist.filter((w) => w.is_favorite)}
+                            portfolio={portfolio}
+                            onUpdateHolding={handleUpdateHolding}
+                        />
+                    </>
+                );
+                const screenerSection = (
+                    <>
+                        <ScreenerPanel
+                            market={screenerMarket}
+                            onMarketChange={setScreenerMarket}
+                            response={screener}
+                            onSelect={runAnalyze}
+                            watchlist={watchlist}
+                            onQuickFavorite={handleQuickFavorite}
+                        />
+                        <IpoPanel items={ipoListings} />
+                    </>
+                );
+                const akurasiSection = <AccuracyPanel data={accuracy} />;
 
-                    <ManualNewsPanel defaultTicker={result?.ticker} defaultMarket={result?.market} />
-                    <LocalHistoryPanel items={localHistory} onSelect={handleSelectCached} />
-                </div>
-            )}
+                return (
+                    // Single column and tab-gated below lg: (unchanged from before) — at lg: and
+                    // up there's room to stop hiding panels behind tabs, so the sidebar shows
+                    // Watchlist/Screener/Akurasi together while Analisis stays the main column.
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+                        <div className="flex flex-col gap-5">
+                            <div className={`${activeTab === 'analisis' ? 'animate-fade-in-up flex' : 'hidden'} flex-col gap-5 lg:flex`}>
+                                {analisisSection}
+                            </div>
+                            <div className="lg:hidden">
+                                {activeTab === 'watchlist' && <div className="animate-fade-in-up flex flex-col gap-5">{watchlistSection}</div>}
+                                {activeTab === 'screener' && <div className="animate-fade-in-up flex flex-col gap-5">{screenerSection}</div>}
+                                {activeTab === 'akurasi' && <div className="animate-fade-in-up flex flex-col gap-5">{akurasiSection}</div>}
+                            </div>
+                        </div>
 
-            {activeTab === 'watchlist' && (
-                <div className="animate-fade-in-up flex flex-col gap-5">
-                    <WatchlistPanel
-                        items={watchlist}
-                        onSelect={runAnalyze}
-                        onRemove={handleRemoveWatchlist}
-                        onToggleFavorite={handleToggleFavorite}
-                        onChangeSector={handleChangeSector}
-                        onAddStarterPack={handleAddStarterPack}
-                        addingStarterPack={addingStarterPack}
-                    />
-                    <PortfolioPanel
-                        favorites={watchlist.filter((w) => w.is_favorite)}
-                        portfolio={portfolio}
-                        onUpdateHolding={handleUpdateHolding}
-                    />
-                </div>
-            )}
-
-            {activeTab === 'screener' && (
-                <div className="animate-fade-in-up flex flex-col gap-5">
-                    <ScreenerPanel
-                        market={screenerMarket}
-                        onMarketChange={setScreenerMarket}
-                        response={screener}
-                        onSelect={runAnalyze}
-                        watchlist={watchlist}
-                        onQuickFavorite={handleQuickFavorite}
-                    />
-                    <IpoPanel items={ipoListings} />
-                </div>
-            )}
-
-            {activeTab === 'akurasi' && (
-                <div className="animate-fade-in-up flex flex-col gap-5">
-                    <AccuracyPanel data={accuracy} />
-                </div>
-            )}
+                        <aside className="hidden flex-col gap-5 lg:flex">
+                            {watchlistSection}
+                            {screenerSection}
+                            {akurasiSection}
+                        </aside>
+                    </div>
+                );
+            })()}
         </AppLayout>
     );
 }

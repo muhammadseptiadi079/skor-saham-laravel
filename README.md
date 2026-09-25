@@ -1188,6 +1188,46 @@ tapi belum ada di aplikasi ini sama sekali sebelumnya:
   mematikan seluruh analisis — dan itu sudah diverifikasi lewat test
   (`test_returns_null_when_endpoint_fails` di kedua service).
 
+## Round Ketiga Puluh: Layout Dua Kolom di Layar Lebar
+
+Di laptop/desktop, dashboard-nya kelihatan banyak ruang kosong kiri-kanan
+karena kontennya dibatasi `max-w-3xl` dan cuma satu kolom (tab-gated)
+seperti tampilan HP — padahal layar lebar ada ruang jauh lebih dari cukup.
+Dipilih opsi "sidebar dashboard" (bukan sekadar melebarkan wadahnya saja),
+supaya ruang ekstra itu benar-benar kepakai, bukan cuma diregangkan:
+
+- **Lebar wadah konten** (`AppLayout.tsx`) naik dari `max-w-3xl` jadi
+  `lg:max-w-6xl xl:max-w-7xl` — tetap `max-w-3xl` di HP/tablet sempit,
+  tidak berubah.
+- **Layout grid 2 kolom mulai breakpoint `lg:` (1024px)** —
+  `Dashboard.tsx` dirombak jadi `grid lg:grid-cols-[minmax(0,1fr)_380px]`:
+  kolom kiri (Analisis: `ResultPanel` + Input Berita Manual + Riwayat)
+  selalu jadi konten utama, kolom kanan jadi sidebar berisi
+  Watchlist + Portfolio + Screener + IPO + Akurasi Historis — semuanya
+  kelihatan sekaligus, tidak perlu klik tab bergantian lagi.
+- **Di bawah `lg:` perilakunya sama sekali tidak berubah** — tetap satu
+  kolom, tetap tab-gated (cuma satu panel kelihatan sesuai tab yang
+  aktif), tetap pakai tab bar kapsul di HP. Dicapai dengan bikin
+  section Watchlist/Screener/Akurasi dan section Analisis
+  masing-masing cuma dirender **satu kali** di JSX (disimpan di variabel
+  lokal `watchlistSection`/`screenerSection`/`akurasiSection`/
+  `analisisSection`), lalu dipakai ulang di dua tempat (blok mobile
+  tab-gated dan `<aside>` sidebar) — supaya tidak ada komponen yang
+  ke-render dua kali dengan props yang gampang beda sendiri-sendiri
+  kalau ditulis manual dua kali.
+- **Tab bar horizontal di desktop (`sm:flex` dari Round 20-an) sekarang
+  disembunyikan lagi mulai `lg:`** (`TabNav.tsx`, tambah `lg:hidden`)
+  — begitu semua panel sudah kelihatan sekaligus di sidebar, tab jadi
+  tidak ada gunanya lagi di lebar itu.
+- **Class toggle `hidden`/`flex` yang dipakai di sini sengaja tidak
+  digabung dengan class `display` unconditional lain di elemen yang
+  sama** — pelajaran dari bug `LedPanel` di Round 28 (dua class
+  `display` unconditional yang tabrakan spesifisitas CSS-nya). Pola
+  yang aman: cuma ada satu class `hidden`/`flex` "dasar" (dari
+  ternary, jadi cuma satu yang pernah aktif) plus satu class
+  media-scoped (`lg:flex`) — pola yang sama seperti `hidden sm:flex`
+  yang sudah dipakai aman di banyak tempat lain di aplikasi ini.
+
 ## Fitur baru: Watchlist, Riwayat, Screener, dan IPO
 
 - **Watchlist** (`/api/watchlist`) — simpan ticker favorit di server (bukan
