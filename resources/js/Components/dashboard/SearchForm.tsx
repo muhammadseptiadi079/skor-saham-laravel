@@ -55,10 +55,10 @@ export default function SearchForm({ onSubmit, submitting, onShowTrading }: Sear
                 type="button"
                 onClick={onShowTrading}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-800 transition-transform hover:scale-105 hover:border-slate-400 active:scale-95"
-                title="Lihat daftar saham per sektor dengan perkiraan persentase kenaikan trading, tandai favorit langsung dari situ"
+                title="Lihat daftar saham per sektor dengan perkiraan persentase kenaikan jangka pendek, tandai favorit langsung dari situ"
             >
                 <ChartUpIcon className="h-4 w-4" />
-                Trading
+                Jangka Pendek
             </button>
         </form>
     );

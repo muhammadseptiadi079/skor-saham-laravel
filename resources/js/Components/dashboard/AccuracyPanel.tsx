@@ -6,7 +6,7 @@ import { GaugeIcon } from '@/Components/Icons';
 const SUB_SCORE_LABELS: Record<string, string> = {
     fundamentals: 'Fundamental',
     news: 'Berita',
-    momentum: 'Momentum (Trading)',
+    momentum: 'Momentum (Jangka Pendek)',
     momentumLongTerm: 'Tren Panjang',
     ownership: 'Kepemilikan',
 };
@@ -52,7 +52,7 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
                     icon={<GaugeIcon className="h-5 w-5" />}
                     message={
                         <>
-                            Belum ada data yang cukup umur untuk dievaluasi. Skor &quot;trading&quot; baru
+                            Belum ada data yang cukup umur untuk dievaluasi. Skor &quot;jangka pendek&quot; baru
                             dinilai setelah ~1 bulan (lewat{' '}
                             <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">php artisan stocks:evaluate-backtest</code>),
                             supaya ada cukup waktu untuk tahu apakah arah harganya benar.
@@ -69,7 +69,7 @@ export default function AccuracyPanel({ data }: { data: AccuracyResponse | null 
     return (
         <Panel title="Akurasi Historis" icon={<GaugeIcon className="h-4 w-4 text-slate-700" />}>
             <p className="mb-3 text-xs text-slate-500">
-                Persentase label "trading" yang arah prediksinya benar ~20 hari perdagangan
+                Persentase label "jangka pendek" yang arah prediksinya benar ~20 hari perdagangan
                 kemudian — dihitung dari riwayat analisis, bukan klaim di muka.
             </p>
             <div className="mb-4 flex items-baseline gap-2">

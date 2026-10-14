@@ -1154,7 +1154,7 @@ class ScoringEngine
             return ['aligned' => true, 'note' => null];
         }
 
-        $note = "Sinyal trading ({$this->labelFor($tradingScore)}) berlawanan arah dengan tren jangka panjang ".
+        $note = "Sinyal jangka pendek ({$this->labelFor($tradingScore)}) berlawanan arah dengan tren jangka panjang ".
             "({$this->labelFor($longtermScore)}) — pertimbangkan apakah ini cuma koreksi/rebound sementara, ".
             'bukan perubahan arah besar.';
 

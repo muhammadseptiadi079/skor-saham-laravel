@@ -161,7 +161,7 @@ export default function ResultPanel({
                     )}
                 </GlassCard>
                 <GlassCard className="p-3">
-                    <ScoreBar score={result.trading.score} label={result.trading.label} title="Trading" />
+                    <ScoreBar score={result.trading.score} label={result.trading.label} title="Jangka Pendek" />
                     {result.trading.confidence && (
                         <p
                             className={`mt-1 text-center text-[11px] font-medium ${confidenceColorClass(result.trading.confidence)}`}
@@ -227,7 +227,7 @@ export default function ResultPanel({
             {result.marketRegime && regimeAccuracy && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                     Kondisi pasar saat ini mirip &quot;{REGIME_LABELS[result.marketRegime]}&quot; — secara historis, skor
-                    trading aplikasi ini akurat {regimeAccuracy.accuracy}% dari {regimeAccuracy.sampleSize} sampel dalam
+                    jangka pendek aplikasi ini akurat {regimeAccuracy.accuracy}% dari {regimeAccuracy.sampleSize} sampel dalam
                     kondisi pasar seperti ini (bukan khusus untuk saham ini).
                 </div>
             )}
@@ -411,7 +411,7 @@ export default function ResultPanel({
             {trendEntries.length >= 2 && (
                 <div className="mt-5">
                     <h3 className="mb-2 text-xs font-semibold tracking-wide text-slate-600 uppercase">
-                        Tren Skor Trading
+                        Tren Skor Jangka Pendek
                     </h3>
                     <GlassCard className="p-3">
                         <HistoryLineChart entries={trendEntries} />
